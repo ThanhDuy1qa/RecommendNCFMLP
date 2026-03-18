@@ -1,0 +1,29 @@
+DoAnTotNghiep_Recommendation/
+├── backend/                # Node.js + Express (API Gateway & Logic)
+│   ├── config/             # Kết nối MongoDB, biến môi trường
+│   ├── controllers/        # Xử lý logic cho từng API (Product, User, Review)
+│   ├── models/             # Định nghĩa Schema MongoDB (Mongoose)
+│   ├── routes/             # Định nghĩa các đường dẫn API
+│   ├── utils/              # Các hàm bổ trợ (cleanPrice, getValidImage)
+│   ├── .env                # Lưu chuỗi kết nối DB và Port
+│   └── server.js           # File chạy chính của Backend
+├── frontend/               # React.js (Giao diện người dùng)
+│   ├── public/             # Ảnh tĩnh, icon
+│   ├── src/
+│   │   ├── components/     # Các thành phần tái sử dụng (ProductCard, Navbar)
+│   │   ├── pages/          # Các trang chính (Home, ProductDetail, Recommendation)
+│   │   ├── services/       # Gọi API từ Backend (Axios)
+│   │   ├── App.jsx         # Component gốc
+│   │   └── main.jsx        # Điểm bắt đầu của React
+│   └── package.json
+├── ai-service/             # Python (Nơi chứa Model Deep Learning)
+│   ├── models/             # Lưu file trọng số .pth hoặc .h5 sau khi train
+│   ├── scripts/            # Script huấn luyện (Autoencoder, NCF, MLP)
+│   ├── preprocessing/      # Tiền xử lý dữ liệu 10GB thành Embedding
+│   ├── main.py             # Chạy FastAPI/Flask để trả về kết quả gợi ý
+│   └── requirements.txt    # Các thư viện Python cần thiết (PyTorch, Pandas)
+├── data/                   # Thư mục chứa dữ liệu thô
+│   ├── meta_Electronics.json
+│   ├── Electronics.json
+│   └── import_to_mongo.py  # Script để đẩy dữ liệu vào MongoDB
+└── README.md               # Hướng dẫn cài đặt và chạy đồ án
