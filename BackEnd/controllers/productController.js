@@ -141,10 +141,95 @@ const getSearchSuggestions = async (req, res) => {
         res.status(500).json({ message: "Lỗi Server" });
     }
 };
+
+// [HÀM ĐÃ TỐI ƯU SIÊU TỐC] Lấy thống kê tổng quan
+// Biến toàn cục để lưu Cache
+let cachedStats = null;
+let isCalculating = false;
+
+// [HÀM DATA ANALYTICS] Tính toán đa luồng các chỉ số phức tạp
+const getSystemStats = async (req, res) => {
+    try {
+        const Product = require('../models/Product');
+        const Review = require('../models/Review');
+
+        const totalProducts = await Product.estimatedDocumentCount();
+        const totalReviews = await Review.estimatedDocumentCount();
+
+        if (!cachedStats && !isCalculating) {
+            isCalculating = true; 
+            console.log("[HỆ THỐNG] Đang tính toán CÁC BIỂU ĐỒ DATA lớn ngầm...");
+
+            // Chạy song song 4 tác vụ cực nặng
+            Promise.all([
+                // 1. Tính điểm trung bình
+                Review.aggregate([{ $group: { _id: null, avgOverall: { $avg: "$overall" } } }]),
+                
+                // 2. Đếm số lượng Khách hàng độc lập (Unique Users)
+                Review.aggregate([
+                    { $group: { _id: "$reviewerID" } },
+                    { $count: "total" }
+                ]).allowDiskUse(true), // Bắt buộc phải có để không tràn RAM
+
+                // 3. Gom nhóm số lượng đánh giá theo Năm (Dùng unixReviewTime)
+                Review.aggregate([
+                    { $match: { unixReviewTime: { $exists: true, $type: "number" } } },
+                    { 
+                        $group: { 
+                            _id: { $year: { $toDate: { $multiply: ["$unixReviewTime", 1000] } } }, 
+                            count: { $sum: 1 } 
+                        } 
+                    },
+                    { $sort: { _id: 1 } } // Sắp xếp năm tăng dần
+                ]).allowDiskUse(true),
+
+                // 4. Top 5 Danh mục sản phẩm lớn nhất
+                Product.aggregate([
+                    { $match: { main_cat: { $ne: null, $ne: "" } } },
+                    { $group: { _id: "$main_cat", count: { $sum: 1 } } },
+                    { $sort: { count: -1 } },
+                    { $limit: 5 }
+                ])
+            ]).then(([avgData, usersData, yearData, catData]) => {
+                // CHẠY NGẦM XONG -> LƯU VÀO CACHE
+                const avgRating = avgData.length > 0 ? avgData[0].avgOverall.toFixed(2) : "0.00";
+                const totalUsers = usersData.length > 0 ? usersData[0].total : 0;
+                
+                // Format lại data cho Biểu đồ Frontend dễ đọc
+                const reviewsByYear = yearData.map(item => ({ year: item._id.toString(), count: item.count }));
+                const topCategories = catData.map(item => ({ name: item._id, count: item.count }));
+
+                cachedStats = {
+                    totalProducts, totalReviews, avgRating, totalUsers, reviewsByYear, topCategories
+                };
+                isCalculating = false; 
+                console.log(`[HỆ THỐNG] Đã tính xong toàn bộ Data Analytics!`);
+            }).catch(error => {
+                console.error("[HỆ THỐNG] Lỗi khi chạy ngầm Data Analytics:", error);
+                isCalculating = false;
+            });
+        }
+
+        // TRẢ VỀ KẾT QUẢ
+        if (cachedStats) {
+            res.json({ ...cachedStats, totalProducts, totalReviews, status: "ready" });
+        } else {
+            res.json({
+                totalProducts, totalReviews, avgRating: "0.00", totalUsers: 0,
+                reviewsByYear: [], topCategories: [], status: "calculating"
+            });
+        }
+    } catch (error) {
+        console.error("Lỗi lấy thống kê:", error);
+        res.status(500).json({ message: "Lỗi Server" });
+    }
+};
+
 // Xuất các hàm ra để file routes có thể sử dụng
 module.exports = {
     getCategories,
     getProducts,
     getProductByAsin,
-    getSearchSuggestions
+    getSearchSuggestions,
+    getSystemStats 
 };

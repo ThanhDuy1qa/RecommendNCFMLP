@@ -1,61 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import ReviewItem from '../components/ReviewItem'; 
-import defaultImg from '../assets/no-image.png'; // <-- Đã thêm ảnh local
+import defaultImg from '../assets/no-image.png';
+import { useProductDetail } from '../hooks/useProductDetail'; // Kéo Não bộ vào
 
 const ProductDetail = () => {
-  const { asin } = useParams();
-  const [product, setProduct] = useState(null);
-  const [reviews, setReviews] = useState([]); 
-  const [loading, setLoading] = useState(true);
+  // Bốc các biến cần thiết từ Hook ra
+  const { product, reviews, loading, imageUrl, validDescription } = useProductDetail();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [productRes, reviewRes] = await Promise.all([
-          fetch(`http://localhost:5000/api/products/${asin}`),
-          fetch(`http://localhost:5000/api/reviews/${asin}`)
-        ]);
-
-        if (!productRes.ok) throw new Error("Lỗi mạng hoặc không tìm thấy");
-        
-        const productData = await productRes.json();
-        setProduct(productData);
-
-        if (reviewRes.ok) {
-          const reviewData = await reviewRes.json();
-          setReviews(reviewData);
-        }
-      } catch (err) {
-        console.error("Lỗi:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [asin]);
-
+  // Xử lý các trạng thái Loading / Lỗi
   if (loading) return <div className="text-white text-center p-10 mt-20 font-bold">Đang tải dữ liệu...</div>;
   if (!product) return <div className="text-white text-center p-10 mt-20 font-bold">Không tìm thấy sản phẩm!</div>;
-
-  // Sử dụng ảnh local nếu không có ảnh từ DB
-  const imageUrl = (Array.isArray(product.imageURLHighRes) && product.imageURLHighRes.length > 0) 
-    ? product.imageURLHighRes 
-    : (Array.isArray(product.imageURL) && product.imageURL.length > 0) 
-      ? product.imageURL 
-      : defaultImg;
-
-  const getValidDescription = () => {
-    if (!product || !product.description || !Array.isArray(product.description)) {
-        return null; 
-    }
-    const validDesc = product.description.find(desc => typeof desc === 'string' && desc.trim() !== "");
-    return validDesc || null;
-  };
-  
-  const validDescription = getValidDescription();
 
   return (
     <div className="min-h-screen bg-slate-900 p-4 md:p-10">
@@ -73,7 +28,7 @@ const ProductDetail = () => {
               src={imageUrl} 
               alt={product.title || "Sản phẩm"} 
               className="max-w-full max-h-[400px] object-contain"
-              onError={(e) => { e.target.src = defaultImg; }} // <-- Bắt lỗi bằng ảnh local
+              onError={(e) => { e.target.src = defaultImg; }} // Bắt lỗi ảnh hỏng
             />
           </div>
 

@@ -3,16 +3,14 @@ const Review = require('../models/Review');
 const getReviewsByAsin = async (req, res) => {
     try {
         const { asin } = req.params;
-        const reviews = await Review.find({ asin: asin }).limit(20);
+        const reviews = await Review.find({ asin: asin });
         res.json(reviews);
     } catch (error) {
         console.error("Lỗi lấy đánh giá:", error);
         res.status(500).json({ message: "Lỗi Server" });
     }
 };
-// [HÀM ĐÃ TỐI ƯU SIÊU TỐC] Gợi ý tên người dùng
-// [HÀM ĐÃ TỐI ƯU SIÊU TỐC VỚI FULL-TEXT SEARCH] 
-// [HÀM ĐÃ ĐỒNG BỘ LOGIC] Gợi ý người dùng siêu tốc (Smart Routing giống Sản phẩm)
+
 const getReviewerSuggestions = async (req, res) => {
     try {
         const keyword = req.query.q || "";
@@ -98,13 +96,13 @@ const getReviewsByUser = async (req, res) => {
 
         if (isID) {
             const keywordID = rawKeyword.toUpperCase();
-            reviews = await Review.find({ reviewerID: keywordID }).limit(50);
+            reviews = await Review.find({ reviewerID: keywordID });
             if (reviews.length === 0) {
-                reviews = await Review.find({ reviewerID: { $regex: '^' + keywordID } }).limit(50);
+                reviews = await Review.find({ reviewerID: { $regex: '^' + keywordID } });
             }
         } else {
             // ĐÃ SỬA: Tìm CHÍNH XÁC tên, không dùng $regex lấp liếm nữa
-            reviews = await Review.find({ reviewerName: rawKeyword }).limit(50);
+            reviews = await Review.find({ reviewerName: rawKeyword });
         }
         
         res.json(reviews);

@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db.js');
 const productRoutes = require('./routes/productRoutes.js');
 const reviewRoutes = require('./routes/reviewRoutes.js');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 const app = express();
 
@@ -16,7 +17,7 @@ app.use(express.json());
 // Định tuyến API
 app.use('/api/products', productRoutes);
 app.use('/api/reviews', reviewRoutes);
-
+app.use('/api/analytics', analyticsRoutes)
 // Thêm Route này để sửa lỗi Cannot GET /
 app.get('/', (req, res) => {
     res.send('API Backend Đang Hoạt Động!');

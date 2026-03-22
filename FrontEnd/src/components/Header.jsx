@@ -7,13 +7,66 @@ const Header = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   
+  // STATE MỚI: Lưu trữ thông tin người dùng đang đăng nhập
+  const [currentUser, setCurrentUser] = useState(null);
+  
   const navigate = useNavigate();
-  const wrapperRef = useRef(null); // Dùng để bắt sự kiện click ra ngoài để đóng khung gợi ý
+  const wrapperRef = useRef(null);
 
-  // 1. GỌI API GỢI Ý KHI GÕ CHỮ (Áp dụng Debounce 300ms)
+  // =========================================================
+  // LOGIC ĐĂNG NHẬP (MOCK LOGIN) VÀ TÌM TÊN KHÁCH HÀNG
+  // =========================================================
+  useEffect(() => {
+    // Kiểm tra xem trước đó đã đăng nhập chưa
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  const handleLoginLogout = async () => {
+    if (currentUser) {
+      // NẾU ĐÃ ĐĂNG NHẬP -> XỬ LÝ ĐĂNG XUẤT
+      if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này?")) {
+        localStorage.removeItem('currentUser');
+        setCurrentUser(null);
+        window.location.reload(); // Tải lại trang để xóa dữ liệu gợi ý AI
+      }
+    } else {
+      // NẾU CHƯA ĐĂNG NHẬP -> XỬ LÝ ĐĂNG NHẬP
+      const id = window.prompt("Vui lòng nhập Reviewer ID của bạn (VD: A192HO2ICJ75VU):");
+      if (!id || !id.trim()) return;
+
+      try {
+        // Dùng API của trang Admin để tìm người dùng này
+        const res = await fetch(`http://localhost:5000/api/reviews/user/${encodeURIComponent(id.trim())}`);
+        const data = await res.json();
+        
+        if (data && data.length > 0) {
+          // Lấy tên thật từ bài đánh giá đầu tiên của họ
+          const userName = data[0].reviewerName || "Khách hàng ẩn danh";
+          const userObj = { id: id.trim(), name: userName };
+          
+          localStorage.setItem('currentUser', JSON.stringify(userObj));
+          setCurrentUser(userObj);
+          
+          alert(`Đăng nhập thành công! Chào mừng ${userName} quay trở lại!`);
+          window.location.reload(); // Tải lại trang để kích hoạt gọi thuật toán AI ở trang chủ
+        } else {
+          alert("Không tìm thấy khách hàng nào với ID này trong hệ thống!");
+        }
+      } catch (error) {
+        console.error(error);
+        alert("Lỗi kết nối Server khi đăng nhập!");
+      }
+    }
+  };
+
+  // =========================================================
+  // LOGIC TÌM KIẾM SẢN PHẨM (GIỮ NGUYÊN CỦA BẠN)
+  // =========================================================
   useEffect(() => {
     const fetchSuggestions = async () => {
-      // Chỉ tìm khi gõ từ 2 ký tự trở lên
       if (searchInput.trim().length < 2) {
         setSuggestions([]);
         return;
@@ -27,15 +80,10 @@ const Header = () => {
       }
     };
 
-    // Tạo bộ đếm thời gian: Chờ người dùng gõ xong 300ms mới gọi API để chống giật lag
-    const delayDebounceFn = setTimeout(() => {
-      fetchSuggestions();
-    }, 300);
-
+    const delayDebounceFn = setTimeout(() => fetchSuggestions(), 300);
     return () => clearTimeout(delayDebounceFn);
   }, [searchInput]);
 
-  // 2. BẮT SỰ KIỆN CLICK RA NGOÀI ĐỂ ĐÓNG KHUNG
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -46,7 +94,6 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 3. XỬ LÝ KHI BẤM NÚT "TÌM KIẾM" (Tìm chung chung)
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchInput.trim() === "") return;
@@ -54,26 +101,23 @@ const Header = () => {
     navigate(`/?search=${encodeURIComponent(searchInput)}`);
   };
 
-  // 4. XỬ LÝ KHI CLICK VÀO 1 SẢN PHẨM GỢI Ý CỤ THỂ
   const handleSuggestionClick = (asin) => {
     setShowSuggestions(false);
-    setSearchInput(""); // Xóa thanh tìm kiếm cho gọn
-    navigate(`/product/${asin}`); // Nhảy thẳng vào trang chi tiết
+    setSearchInput(""); 
+    navigate(`/product/${asin}`); 
   };
 
   return (
     <div className="bg-slate-900 border-b border-slate-700 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
         
+        {/* LOGO TRANG CHỦ */}
         <Link to="/" className="text-2xl font-bold text-white whitespace-nowrap hover:text-blue-400 transition-colors">
           Kho Điện Tử
         </Link>
-        <Link to="/admin" className="text-xs font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 px-3 py-1.5 rounded border border-slate-600 hover:border-blue-400 hover:text-blue-400 transition-all">
-            Quản Trị
-          </Link>
-        {/* Khu vực chứa Form và Khung xổ xuống */}
+        
+        {/* THANH TÌM KIẾM SẢN PHẨM */}
         <div ref={wrapperRef} className="relative w-full md:w-1/2">
-          
           <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <input
               type="text"
@@ -94,7 +138,7 @@ const Header = () => {
             </button>
           </form>
 
-          {/* KHUNG HIỂN THỊ GỢI Ý XỔ XUỐNG */}
+          {/* GỢI Ý TÌM KIẾM */}
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-[90px] mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl overflow-hidden z-50">
               {suggestions.map((item, index) => (
@@ -119,6 +163,14 @@ const Header = () => {
             </div>
           )}
         </div>
+
+        {/* NÚT ĐĂNG NHẬP / THÔNG TIN CÁ NHÂN */}
+        <button 
+          onClick={handleLoginLogout}
+          className="text-sm font-semibold whitespace-nowrap bg-slate-800 text-slate-300 px-4 py-2 rounded-lg border border-slate-600 hover:border-blue-400 hover:text-blue-400 transition-all shadow-md"
+        >
+          {currentUser ? `👋 Xin chào, ${currentUser.name}` : "👤 Nhập ID Khách hàng"}
+        </button>
 
       </div>
     </div>
