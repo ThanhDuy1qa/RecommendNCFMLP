@@ -1,0 +1,34 @@
+# Bỏ qua thư viện thư mục nặng
+node_modules/
+FrontEnd/node_modules/
+BackEnd/node_modules/
+node_modules/
+venv/
+env/
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+# Bỏ qua các file môi trường chứa thông tin bảo mật
+.env
+.env.local
+
+# 3. DỮ LIỆU & TRỌNG SỐ MÔ HÌNH AI (Vượt quá 100MB của GitHub)
+*.csv
+*.npy
+*.pkl
+*.pth
+*.keras
+*.h5
+
+# Bỏ qua file log và file build
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+FrontEnd/dist/
+
+ai-service/NCKH_270326/source_min_user=20, min_item=12/data
+ai-service/NCKH_270326.rar
+data/
+outputs/
+processed_data/
+train_Au/
