@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export const useAdminSearch = () => {
+export const useCustomerInsight = () => {
   const [userInput, setUserInput] = useState("");
   const [userHistory, setUserHistory] = useState([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -10,7 +10,11 @@ export const useAdminSearch = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null);
 
-  // Debounce API Gợi ý
+  // --- STATE MỚI CHO AI ---
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+
+  // Gợi ý tìm kiếm (Debounce 150ms)
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (userInput.trim().length < 2) {
@@ -40,12 +44,14 @@ export const useAdminSearch = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Hàm gọi API tìm kiếm
   const executeSearch = async (keyword) => {
     if (!keyword.trim()) return;
     setLoadingSearch(true);
     setSearched(true);
     setShowSuggestions(false);
+    
+    // Xóa kết quả AI cũ khi tìm người mới
+    setRecommendations([]); 
     
     try {
       const res = await fetch(`http://localhost:5000/api/reviews/user/${encodeURIComponent(keyword)}`);
@@ -68,11 +74,38 @@ export const useAdminSearch = () => {
     executeSearch(reviewerID);
   };
 
-  const handleGetRecommendations = () => {
-    alert(`Đang gửi ID [${userInput}] sang Server Python AI... (Chờ tích hợp)`);
+  // --- HÀM GỌI AI ĐÃ ĐƯỢC LÀM HOÀN CHỈNH ---
+  const handleGetRecommendations = async () => {
+    if (!userInput) return;
+    setLoadingRecs(true);
+    setRecommendations([]);
+
+    try {
+      // 1. Gọi sang Python lấy mã ASIN
+      const aiRes = await fetch(`http://localhost:8000/api/recommend/${encodeURIComponent(userInput)}?top_k=9`);
+      if (!aiRes.ok) throw new Error("Lỗi Cold Start: Khách hàng chưa đủ dữ liệu!");
+      
+      const aiData = await aiRes.json();
+      const asins = aiData.recommendations;
+
+      // 2. Gọi sang Node.js để lấy hình ảnh, tên và giá
+      if (asins && asins.length > 0) {
+        const nodeRes = await fetch(`http://localhost:5000/api/products/list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ asins })
+        });
+        const productsData = await nodeRes.json();
+        setRecommendations(productsData);
+      }
+    } catch (error) {
+      console.warn("Lỗi AI:", error);
+      alert(error.message);
+    } finally {
+      setLoadingRecs(false);
+    }
   };
 
-  // Trả về toàn bộ State và Function để UI sử dụng
   return {
     userInput, setUserInput,
     userHistory,
@@ -83,6 +116,8 @@ export const useAdminSearch = () => {
     wrapperRef,
     handleSearchSubmit,
     handleSuggestionClick,
-    handleGetRecommendations
+    handleGetRecommendations,
+    // Trả ra ngoài cho component Admin dùng
+    recommendations, loadingRecs 
   };
 };

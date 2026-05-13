@@ -1,15 +1,43 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import defaultIcon from '../assets/no-image.png';
-import { useHeader } from '../hooks/useHeader'; // Kéo Não bộ vào
+import { useHeader } from '../hooks/useHeader';
 
 const Header = () => {
   const {
     searchInput, setSearchInput,
     suggestions, showSuggestions, setShowSuggestions,
-    currentUser, wrapperRef,
-    handleLoginLogout, handleSearchSubmit, handleSuggestionClick
+    wrapperRef, handleSearchSubmit, handleSuggestionClick
   } = useHeader();
+
+  const navigate = useNavigate();
+  // Khai báo state lưu thông tin user từ LocalStorage
+  const [loggedInUser, setLoggedInUser] = useState(null);
+
+  // Đọc thông tin user ngay khi Header được render
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      setLoggedInUser(JSON.parse(userStr));
+    }
+  }, []);
+
+  // Xử lý nút Đăng nhập / Đăng xuất
+  const handleAuthAction = () => {
+    if (loggedInUser) {
+      // Nếu đã đăng nhập -> Thực hiện Đăng xuất
+      if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setLoggedInUser(null);
+        navigate('/'); // Về trang chủ
+        window.location.reload(); // Tải lại trang để xóa sạch cache
+      }
+    } else {
+      // Nếu chưa đăng nhập -> Chuyển đến trang Login
+      navigate('/login');
+    }
+  };
 
   return (
     <div className="bg-slate-900 border-b border-slate-700 sticky top-0 z-50">
@@ -65,11 +93,16 @@ const Header = () => {
           )}
         </div>
 
+        {/* NÚT ĐĂNG NHẬP / ĐĂNG XUẤT THÔNG MINH */}
         <button 
-          onClick={handleLoginLogout}
-          className="text-sm font-semibold whitespace-nowrap bg-slate-800 text-slate-300 px-4 py-2 rounded-lg border border-slate-600 hover:border-blue-400 hover:text-blue-400 transition-all shadow-md"
+          onClick={handleAuthAction}
+          className={`text-sm font-semibold whitespace-nowrap px-4 py-2 rounded-lg border transition-all shadow-md ${
+            loggedInUser 
+              ? 'bg-slate-800 text-blue-400 border-blue-500 hover:bg-red-900 hover:text-red-400 hover:border-red-500' 
+              : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500'
+          }`}
         >
-          {currentUser ? `👋 Xin chào, ${currentUser.name}` : "👤 Nhập ID Khách hàng"}
+          {loggedInUser ? `👋 Xin chào, ${loggedInUser.name || loggedInUser.username}` : "👤 Đăng Nhập"}
         </button>
 
       </div>

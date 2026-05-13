@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const reviewSchema = new mongoose.Schema({
+const reviewOldSchema = new mongoose.Schema({
     overall: Number,
     verified: Boolean,
     reviewTime: String,
@@ -9,8 +9,7 @@ const reviewSchema = new mongoose.Schema({
     reviewerName: String,
     reviewText: String,
     summary: String,
-    style: Object,
     unixReviewTime: Number
-}, { collection: 'Electronics' }); 
+}, { collection: 'Electronics' }); // Trỏ vào bảng gốc (ví dụ Electronics)
 
-module.exports = mongoose.model('Review', reviewSchema);
+module.exports = mongoose.model('ReviewOld', reviewOldSchema);

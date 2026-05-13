@@ -4,34 +4,38 @@ const fs = require('fs');
 const path = require('path'); 
 
 // ==============================================================
-// 1. CÁC HÀM XỬ LÝ ĐỘC LẬP (MODULES)
+// 1. CÁC HÀM XỬ LÝ ĐỘC LẬP (MODULES) - ĐÃ CẬP NHẬT THEO DATA MỚI
 // ==============================================================
 
 const fetchTotalProducts = () => Product.estimatedDocumentCount();
 const fetchTotalReviews = () => Review.estimatedDocumentCount();
 
 const fetchAvgRating = async () => {
-    const data = await Review.aggregate([{ $group: { _id: null, avgOverall: { $avg: "$overall" } } }]);
-    return data.length > 0 ? data[0].avgOverall.toFixed(2) : "0.00";
+    // Sửa overall -> rating
+    const data = await Review.aggregate([{ $group: { _id: null, avgOverall: { $avg: "$rating" } } }]);
+    // Nhân 5 để ra thang 5 sao
+    return data.length > 0 ? (data[0].avgOverall * 5).toFixed(2) : "0.00";
 };
 
 const fetchTotalUsers = async () => {
+    // Sửa reviewerID -> user_id
     const data = await Review.aggregate([
-        { $group: { _id: "$reviewerID" } },
+        { $group: { _id: "$user_id" } },
         { $count: "total" }
     ]).allowDiskUse(true);
     return data.length > 0 ? data[0].total : 0;
 };
 
 const fetchReviewsByTime = async () => {
+    // Sửa unixReviewTime -> timestamp
     const data = await Review.aggregate([
-        { $match: { unixReviewTime: { $exists: true, $type: "number" } } },
+        { $match: { timestamp: { $exists: true, $type: "number" } } },
         { 
             $group: { 
                 _id: { 
-                    year: { $year: { $toDate: { $multiply: ["$unixReviewTime", 1000] } } },
-                    month: { $month: { $toDate: { $multiply: ["$unixReviewTime", 1000] } } },
-                    day: { $dayOfMonth: { $toDate: { $multiply: ["$unixReviewTime", 1000] } } }
+                    year: { $year: { $toDate: { $multiply: ["$timestamp", 1000] } } },
+                    month: { $month: { $toDate: { $multiply: ["$timestamp", 1000] } } },
+                    day: { $dayOfMonth: { $toDate: { $multiply: ["$timestamp", 1000] } } }
                 }, 
                 count: { $sum: 1 } 
             } 
@@ -53,39 +57,35 @@ const fetchAllCategories = async () => {
     return data.map(item => ({ name: item._id, count: item.count }));
 };
 
-// [MỚI] 1. Phân bố điểm số (1-5 sao)
 const fetchRatingDistribution = async () => {
+    // Sửa overall -> rating
     const data = await Review.aggregate([
-        { $group: { _id: "$overall", count: { $sum: 1 } } },
-        { $sort: { _id: -1 } } // Sắp xếp từ 5 sao xuống 1 sao
+        { $group: { _id: "$rating", count: { $sum: 1 } } },
+        { $sort: { _id: -1 } } 
     ]).allowDiskUse(true);
-    return data.map(item => ({ name: `${item._id} Sao`, count: item.count }));
+    // Nhận diện rating 0.2, 0.4... nhân 5 lên thành 1, 2, 3 Sao
+    return data.map(item => ({ name: `${item._id * 5} Sao`, count: item.count }));
 };
 
-// [MỚI] 2. Tỷ lệ mua hàng xác thực
 const fetchVerifiedPurchases = async () => {
-    const data = await Review.aggregate([
-        { $group: { _id: "$verified", count: { $sum: 1 } } }
-    ]).allowDiskUse(true);
-    return data.map(item => ({ name: item._id ? "Đã mua hàng (Verified)" : "Chưa xác thực", count: item.count }));
+    // Vì file clean.py đã lọc 100% verified = true, nên ta lấy tổng document luôn
+    const total = await Review.estimatedDocumentCount();
+    return [{ name: "Đã mua hàng (Verified)", count: total }];
 };
 
-// [MỚI] 3. Top 10 Thương hiệu
 const fetchTopBrands = async () => {
     const data = await Product.aggregate([
         { $match: { brand: { $ne: null, $ne: "" } } },
         { $group: { _id: "$brand", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
-        { $limit: 10 } // Chỉ lấy Top 10 cho đẹp biểu đồ
+        { $limit: 10 } 
     ]);
-    // Amazon hay có kiểu brand là "Visit Amazon's Apple Page", ta có thể làm sạch sơ qua nếu cần, ở đây giữ nguyên gốc
     return data.map(item => ({ name: item._id, count: item.count }));
 };
 
 // ==============================================================
-// 2. HÀM CHẠY NỀN (BACKGROUND WORKER)
+// 2. HÀM CHẠY NỀN VÀ API ĐIỀU PHỐI (GIỮ NGUYÊN)
 // ==============================================================
-
 const CACHE_FILE_PATH = path.join(__dirname, '../stats_cache.json'); 
 let cachedStats = null;
 let isCalculating = false;
@@ -95,28 +95,14 @@ const runBackgroundAnalytics = async () => {
     console.log("[HỆ THỐNG] Bắt đầu tính toán toàn bộ 7 Module phân tích ngầm...");
 
     try {
-        console.log("[1/7] Đang tính điểm trung bình...");
         const avgRating = await fetchAvgRating();
-
-        console.log("[2/7] Đang đếm lượng khách hàng độc lập...");
         const totalUsers = await fetchTotalUsers();
-
-        console.log("[3/7] Đang phân tích biểu đồ thời gian...");
         const reviewsByTime = await fetchReviewsByTime();
-
-        console.log("[4/7] Đang phân tích toàn bộ danh mục...");
         const allCategories = await fetchAllCategories();
-
-        console.log("[5/7] Đang phân tích phân bố 1-5 sao...");
         const ratingDistribution = await fetchRatingDistribution();
-
-        console.log("[6/7] Đang kiểm tra tỷ lệ xác thực mua hàng...");
         const verifiedPurchases = await fetchVerifiedPurchases();
-
-        console.log("[7/7] Đang xếp hạng Top thương hiệu...");
         const topBrands = await fetchTopBrands();
 
-        // Gộp toàn bộ vào 1 object
         cachedStats = {
             avgRating, totalUsers, reviewsByTime, allCategories, 
             ratingDistribution, verifiedPurchases, topBrands
@@ -130,10 +116,6 @@ const runBackgroundAnalytics = async () => {
         isCalculating = false; 
     }
 };
-
-// ==============================================================
-// 3. API ĐIỀU PHỐI (MAIN CONTROLLER)
-// ==============================================================
 
 const getSystemStats = async (req, res) => {
     try {

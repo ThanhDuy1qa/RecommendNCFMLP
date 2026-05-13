@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 
-// ĐÂY LÀ NƠI CHỨA TOÀN BỘ CHẤT XÁM (LOGIC)
 export const useStatsData = () => {
   const [stats, setStats] = useState({ 
     totalProducts: 0, totalReviews: 0, totalUsers: 0, avgRating: "0.00", 
@@ -14,7 +13,7 @@ export const useStatsData = () => {
   const [timeMode, setTimeMode] = useState('year'); 
   const [selectedYear, setSelectedYear] = useState('All');
   const [selectedMonth, setSelectedMonth] = useState('All');
-
+// Hàm lấy dữ liệu thống kê từ server
   const fetchStats = async () => {
     setErrorMsg(null);
     try {
@@ -27,13 +26,13 @@ export const useStatsData = () => {
   };
 
   useEffect(() => { fetchStats(); }, []);
-
+// Tự động refresh dữ liệu nếu đang trong trạng thái "calculating"
   useEffect(() => {
     let intervalId = null;
     if (stats.status === "calculating") intervalId = setInterval(() => fetchStats(), 5000); 
     return () => clearInterval(intervalId);
   }, [stats.status]);
-
+// Hàm xử lý khi người dùng click vào nút "Tính toán lại"
   const handleRecalculate = async () => {
     const confirm = window.confirm("Hệ thống sẽ chạy 7 Module AI phân tích lại toàn bộ Data. Quá trình này khá tốn thời gian. Tiếp tục?");
     if (!confirm) return;
@@ -44,14 +43,14 @@ export const useStatsData = () => {
       fetchStats(); 
     } catch (err) { alert("Lỗi kết nối Server!"); }
   };
-
+// Dữ liệu đã được xử lý sẵn cho biểu đồ, chỉ cần sort và cắt theo limit để hiển thị
   const catChartData = useMemo(() => {
     if (!stats.allCategories || stats.allCategories.length === 0) return [];
     let data = [...stats.allCategories];
     data.sort((a, b) => catSort === 'asc' ? a.count - b.count : b.count - a.count);
     return data.slice(0, catLimit);
   }, [stats.allCategories, catLimit, catSort]);
-
+// Xử lý dữ liệu cho biểu đồ theo thời gian: nhóm theo năm/tháng/ngày tùy vào timeMode, đồng thời áp dụng filter năm/tháng nếu có
   const timeChartData = useMemo(() => {
     if (!stats.reviewsByTime || stats.reviewsByTime.length === 0) return [];
     const grouped = {};
@@ -65,13 +64,12 @@ export const useStatsData = () => {
     });
     return Object.keys(grouped).sort().map(k => ({ time: k, count: grouped[k] }));
   }, [stats.reviewsByTime, timeMode, selectedYear, selectedMonth]);
-
+// Tạo danh sách năm có sẵn để hiển thị trong dropdown filter
   const availableYears = useMemo(() => {
     if (!stats.reviewsByTime) return [];
     return Array.from(new Set(stats.reviewsByTime.map(item => item.year))).sort();
   }, [stats.reviewsByTime]);
 
-  // Cuối cùng, trả về (Export) tất cả những gì UI cần dùng
   return {
     stats, loading, errorMsg,
     catLimit, setCatLimit, catSort, setCatSort,

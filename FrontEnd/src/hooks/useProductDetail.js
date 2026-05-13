@@ -8,11 +8,11 @@ export const useProductDetail = () => {
   const [reviews, setReviews] = useState([]); 
   const [loading, setLoading] = useState(true);
 
-  // 1. GỌI API LẤY DỮ LIỆU
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // gọi api song song để lấy chi tiết sản phẩm và đánh giá cùng lúc, tránh phải chờ 2 lần
         const [productRes, reviewRes] = await Promise.all([
           fetch(`http://localhost:5000/api/products/${asin}`),
           fetch(`http://localhost:5000/api/reviews/${asin}`)
@@ -36,16 +36,14 @@ export const useProductDetail = () => {
 
     fetchData();
   }, [asin]);
-
-  // 2. XỬ LÝ ẢNH HIỂN THỊ (Dùng useMemo để không tính toán lại nhiều lần)
+// Xử lý logic chọn ảnh hiển thị: ưu tiên imageURLHighRes > imageURL > default
   const imageUrl = useMemo(() => {
     if (!product) return defaultImg;
     if (Array.isArray(product.imageURLHighRes) && product.imageURLHighRes.length > 0) return product.imageURLHighRes;
     if (Array.isArray(product.imageURL) && product.imageURL.length > 0) return product.imageURL;
     return defaultImg;
   }, [product]);
-
-  // 3. XỬ LÝ MÔ TẢ HỢP LỆ
+// Kiểm tra xem description có phải là một mảng hợp lệ không, nếu không trả về null để component xử lý hiển thị "Không có mô tả"
   const validDescription = useMemo(() => {
     if (!product || !product.description || !Array.isArray(product.description)) return null;
     const validDesc = product.description.find(desc => typeof desc === 'string' && desc.trim() !== "");

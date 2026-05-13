@@ -1,21 +1,25 @@
 import React from 'react';
 import ProductCard from '../components/ProductCard';
-import { useHome, CATEGORIES } from '../hooks/useHome'; // Kéo Não bộ và mảng Danh mục vào
+import { useHome } from '../hooks/useHome';
 
 const Home = () => {
-  // Lấy toàn bộ súng đạn từ kho ra dùng
   const {
-    products, loading, hasMore, activeCategory, activeSearch,
-    handleCategoryClick, loadMore
+    categories = [],
+    products = [],
+    loading, hasMore, activeCategory, activeSearch,
+    handleCategoryClick, loadMore,
+    recommendations = [],
+    loadingRecs,
+    visibleRecsCount,
+    loadMoreRecs
   } = useHome();
-
   return (
     <div className="bg-slate-900 p-4 sm:p-8 min-h-screen">
       <div className="max-w-7xl mx-auto">
         
         {/* BONG BÓNG DANH MỤC */}
         <div className="flex overflow-x-auto gap-4 sm:gap-6 pb-6 mb-6 border-b border-slate-700 scrollbar-hide items-start">
-          {CATEGORIES.map((cat, index) => {
+          {categories.map((cat, index) => {
             const isActive = activeCategory === cat.value; 
             
             return (
@@ -63,7 +67,7 @@ const Home = () => {
         )}
 
         {/* NÚT XEM THÊM VÀ LOADING DƯỚI ĐÁY */}
-        <div className="mt-8 mb-4 flex justify-center">
+        <div className="mt-8 mb-12 flex justify-center border-b border-slate-700 pb-12">
           {loading && products.length > 0 && (
             <div className="flex items-center gap-2 text-blue-400 font-bold animate-pulse">
               <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
@@ -73,7 +77,7 @@ const Home = () => {
 
           {!loading && hasMore && products.length > 0 && (
             <button 
-              onClick={loadMore} // Gọi thẳng hàm loadMore rất gọn
+              onClick={loadMore}
               className="bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-600 hover:border-blue-400 px-8 py-2.5 rounded-full font-semibold transition-all shadow-lg hover:shadow-blue-500/20"
             >
               Xem thêm sản phẩm
@@ -86,6 +90,46 @@ const Home = () => {
             </div>
           )}
         </div>
+
+        {/* =========================================================
+            KHU VỰC DÀNH RIÊNG CHO AI (HIỂN THỊ DƯỚI CÙNG)
+            ========================================================= */}
+        {loadingRecs && (
+          <div className="flex items-center gap-3 text-indigo-400 font-bold animate-pulse mt-8">
+             <span className="text-2xl">🤖</span> AI đang phân tích sở thích của bạn...
+          </div>
+        )}
+
+        {!loadingRecs && recommendations.length > 0 && (
+          <div className="mt-8 mb-8 bg-slate-800/50 p-6 rounded-2xl border border-indigo-500/30 shadow-[0_0_30px_rgba(79,70,229,0.15)] relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-3xl rounded-full"></div>
+            
+            <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 mb-6 flex items-center gap-3 relative z-10">
+              <span className="text-3xl filter drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]">✨</span> 
+              Gợi ý dành riêng cho bạn
+            </h2>
+            
+            {/* ĐÃ SỬA: Dùng hàm slice(0, visibleRecsCount) để cắt đúng số lượng cần hiện */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-9 gap-2 sm:gap-3 items-start relative z-10">
+              {recommendations.slice(0, visibleRecsCount).map((prod, index) => (
+                <ProductCard key={`ai-rec-${prod.asin}-${index}`} product={prod} />
+              ))}
+            </div>
+
+            {/* ĐÃ THÊM: Nút "Xem thêm" dành riêng cho AI */}
+            {visibleRecsCount < recommendations.length && (
+              <div className="mt-8 flex justify-center relative z-10">
+                <button 
+                  onClick={loadMoreRecs}
+                  className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/50 hover:border-indigo-400 px-8 py-2.5 rounded-full font-semibold transition-all shadow-lg"
+                >
+                  Xem thêm gợi ý AI
+                </button>
+              </div>
+            )}
+            
+          </div>
+        )}
 
       </div>
     </div>

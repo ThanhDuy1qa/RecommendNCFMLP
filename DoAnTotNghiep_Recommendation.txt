@@ -1,3 +1,13 @@
+D:\DATN\BackEnd>node server.js
+D:\DATN\FrontEnd>npm run dev
+D:\DATN\ai-service\NCKH_270326\source_min_user=20, min_item=12\source>python app.py
+npm install recharts
+
+frontend react.js, vite, tailwindCSS
+backend node.js express.js
+database mongoDB
+AI service: python,fastAPI,pytorch,pandas,numpy,scikit-learn
+
 DoAnTotNghiep_Recommendation/
 ├── backend/                # Node.js + Express (API Gateway & Logic)
 │   ├── config/             # Kết nối MongoDB, biến môi trường

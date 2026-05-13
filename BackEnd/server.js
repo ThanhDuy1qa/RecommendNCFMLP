@@ -5,6 +5,7 @@ const connectDB = require('./config/db.js');
 const productRoutes = require('./routes/productRoutes.js');
 const reviewRoutes = require('./routes/reviewRoutes.js');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -15,6 +16,7 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 // Định tuyến API
+app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/analytics', analyticsRoutes)

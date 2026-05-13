@@ -1,8 +1,11 @@
 const Review = require('../models/Review');
+const Product = require('../models/Product'); // Dùng để tra cứu tên sản phẩm
 
+// 1. Lấy đánh giá của 1 sản phẩm
 const getReviewsByAsin = async (req, res) => {
     try {
         const { asin } = req.params;
+        // Quét cả 2 trường hợp tên cột
         const reviews = await Review.find({ asin: asin });
         res.json(reviews);
     } catch (error) {
@@ -11,74 +14,36 @@ const getReviewsByAsin = async (req, res) => {
     }
 };
 
+// 2. Gợi ý tìm kiếm khi đang gõ chữ
 const getReviewerSuggestions = async (req, res) => {
     try {
         const keyword = req.query.q || "";
         if (!keyword) return res.json([]);
 
-        // 1. Dọn dẹp ký tự lạ chống lỗi Regex
         const safeKeyword = keyword.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+        const idKeyword = safeKeyword.toUpperCase(); 
 
-        // 2. Phân loại từ khóa: Có giống mã Reviewer ID không?
-        // ID Amazon thường viết liền, không dấu cách, có chứa số.
-        const isProbablyID = !keyword.includes(' ') && /[0-9]/.test(keyword);
-
-        let suggestions = [];
-
-        if (isProbablyID) {
-            // ---- TRƯỜNG HỢP 1: TÌM THEO ID ----
-            const idKeyword = safeKeyword.toUpperCase(); // Ép in hoa
-            
-            suggestions = await Review.aggregate([
-                {
-                    // Thêm ^ và KHÔNG dùng cờ 'i' để ép MongoDB dùng Index của ID
-                    $match: { reviewerID: { $regex: '^' + idKeyword } }
-                },
-                { $limit: 100 }, // Dừng sớm
-                {
-                    $group: {
-                        _id: "$reviewerID",
-                        reviewerName: { $first: "$reviewerName" }
-                    }
-                },
-                { $limit: 5 },
-                {
-                    $project: { reviewerID: "$_id", reviewerName: 1, _id: 0 }
+        const suggestions = await Review.aggregate([
+            { 
+                $match: { 
+                    $or: [
+                        { reviewerID: { $regex: '^' + idKeyword } },
+                        { user_id: { $regex: '^' + idKeyword } }
+                    ] 
+                } 
+            },
+            { $limit: 100 },
+            {
+                $group: {
+                    _id: { $ifNull: ["$reviewerID", "$user_id"] },
+                    reviewerName: { $first: { $ifNull: ["$reviewerName", "ID Khách hàng"] } }
                 }
-            ]);
-        }
-
-        // 3. Nếu tìm ID không ra (do khách gõ tên như "jojo", "john")
-        if (suggestions.length === 0) {
-            // ---- TRƯỜNG HỢP 2: TÌM THEO TÊN (MẸO 3 PHIÊN BẢN) ----
-            const lowerK = safeKeyword.toLowerCase(); // jojo
-            const capK = safeKeyword.charAt(0).toUpperCase() + safeKeyword.slice(1).toLowerCase(); // Jojo
-            const upperK = safeKeyword.toUpperCase(); // JOJO
-
-            suggestions = await Review.aggregate([
-                {
-                    // Tìm 1 trong 3 phiên bản, KHÔNG dùng cờ 'i' để cứu CPU
-                    $match: {
-                        $or: [
-                            { reviewerName: { $regex: capK } },
-                            { reviewerName: { $regex: lowerK } },
-                            { reviewerName: { $regex: upperK } }
-                        ]
-                    }
-                },
-                { $limit: 100 }, // Dừng sớm
-                {
-                    $group: {
-                        _id: "$reviewerID",
-                        reviewerName: { $first: "$reviewerName" }
-                    }
-                },
-                { $limit: 5 },
-                {
-                    $project: { reviewerID: "$_id", reviewerName: 1, _id: 0 }
-                }
-            ]);
-        }
+            },
+            { $limit: 5 },
+            {
+                $project: { reviewerID: "$_id", reviewerName: 1, _id: 0 }
+            }
+        ]);
 
         res.json(suggestions);
     } catch (error) {
@@ -86,26 +51,55 @@ const getReviewerSuggestions = async (req, res) => {
         res.status(500).json({ message: "Lỗi Server" });
     }
 };
-// [HÀM ĐÃ SỬA LUẬT] Tìm chính xác 1 người
+
+// 3. Lấy lịch sử tương tác của khách hàng + LẤY THÊM TÊN SẢN PHẨM
 const getReviewsByUser = async (req, res) => {
     try {
-        const rawKeyword = req.params.userId.trim();
-        const isID = !rawKeyword.includes(' ') && /[0-9]/.test(rawKeyword);
+        const rawKeyword = req.params.userId.trim().toUpperCase();
 
-        let reviews = [];
-
-        if (isID) {
-            const keywordID = rawKeyword.toUpperCase();
-            reviews = await Review.find({ reviewerID: keywordID });
-            if (reviews.length === 0) {
-                reviews = await Review.find({ reviewerID: { $regex: '^' + keywordID } });
-            }
-        } else {
-            // ĐÃ SỬA: Tìm CHÍNH XÁC tên, không dùng $regex lấp liếm nữa
-            reviews = await Review.find({ reviewerName: rawKeyword });
+        // BƯỚC 1: Tìm lịch sử (Hỗ trợ cả Database gốc và Database Clean)
+        let reviews = await Review.find({ 
+            $or: [{ reviewerID: rawKeyword }, { user_id: rawKeyword }]
+        });
+        
+        if (reviews.length === 0) {
+            reviews = await Review.find({ 
+                $or: [
+                    { reviewerID: { $regex: '^' + rawKeyword } },
+                    { user_id: { $regex: '^' + rawKeyword } }
+                ]
+            });
         }
         
-        res.json(reviews);
+        // BƯỚC 2: Móc nối sang bảng Products để lấy Tiêu đề (Title)
+        const itemIds = [...new Set(reviews.map(r => r.asin || r.item_id))];
+        const products = await Product.find({ item_id: { $in: itemIds } }, 'item_id title');
+        
+        const productMap = {};
+        products.forEach(p => {
+            productMap[p.item_id] = p.title;
+        });
+
+        // BƯỚC 3: Chuẩn hóa dữ liệu gửi về React
+        const formattedReviews = reviews.map(r => {
+            const doc = r._doc || r; // Hỗ trợ lấy data từ object Mongoose
+            
+            return {
+                ...doc,
+                // Đồng bộ tên biến cho React dễ đọc
+                reviewerID: doc.reviewerID || doc.user_id,
+                asin: doc.asin || doc.item_id,
+                reviewerName: doc.reviewerName || "Khách hàng ẩn danh",
+                overall: doc.overall || (doc.rating ? doc.rating * 5 : 5),
+                reviewTime: doc.reviewTime || "N/A",
+                summary: doc.summary || "Lịch sử tương tác",
+                reviewText: doc.reviewText || "Dữ liệu tương tác đã được hệ thống AI ghi nhận.",
+                // Gắn tên sản phẩm
+                productTitle: productMap[doc.asin || doc.item_id] || "Sản phẩm không xác định"
+            };
+        });
+
+        res.json(formattedReviews);
     } catch (error) {
         console.error("Lỗi lấy lịch sử người dùng:", error);
         res.status(500).json({ message: "Lỗi Server" });
