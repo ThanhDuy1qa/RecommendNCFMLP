@@ -75,37 +75,32 @@ export const useCustomerInsight = () => {
   };
 
   // --- HÀM GỌI AI ĐÃ ĐƯỢC LÀM HOÀN CHỈNH ---
+  // --- HÀM GỌI AI ĐÃ ĐƯỢC LÀM HOÀN CHỈNH ---
   const handleGetRecommendations = async () => {
     if (!userInput) return;
     setLoadingRecs(true);
     setRecommendations([]);
 
     try {
-      // 1. Gọi sang Python lấy mã ASIN
-      const aiRes = await fetch(`http://localhost:8000/api/recommend/${encodeURIComponent(userInput)}?top_k=9`);
-      if (!aiRes.ok) throw new Error("Lỗi Cold Start: Khách hàng chưa đủ dữ liệu!");
+      // KHÔNG CẦN KIỂM TRA SỐ NỮA, CỨ GỬI THẲNG userInput (Mã Chữ) LÊN SERVER
+      const res = await fetch(`http://localhost:5000/api/products/recommendations/${encodeURIComponent(userInput)}`);
       
-      const aiData = await aiRes.json();
-      const asins = aiData.recommendations;
-
-      // 2. Gọi sang Node.js để lấy hình ảnh, tên và giá
-      if (asins && asins.length > 0) {
-        const nodeRes = await fetch(`http://localhost:5000/api/products/list`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ asins })
-        });
-        const productsData = await nodeRes.json();
+      if (!res.ok) throw new Error("Lỗi lấy dữ liệu từ Server!");
+      
+      const productsData = await res.json();
+      
+      if (productsData.length === 0) {
+        alert("Người dùng này chưa có dữ liệu gợi ý AI!");
+      } else {
         setRecommendations(productsData);
       }
     } catch (error) {
-      console.warn("Lỗi AI:", error);
       alert(error.message);
     } finally {
       setLoadingRecs(false);
     }
   };
-
+  
   return {
     userInput, setUserInput,
     userHistory,

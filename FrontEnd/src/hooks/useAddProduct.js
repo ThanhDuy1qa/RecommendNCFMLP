@@ -2,23 +2,28 @@ import { useState, useEffect } from 'react';
 
 export const useAddProduct = () => {
   const [formData, setFormData] = useState({
-    item_id: '', title: '', brand: '', price: '', 
-    main_cat: '', category: "['Electronics']", image_url_high: '', description: ''
+    asin: '', title: '', brand: '', price: '', 
+    main_cat: '', category: "['Electronics']", description: ''
   });
 
   const [dbCategories, setDbCategories] = useState([]); 
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // STATE MỚI: Quản lý file vật lý và link xem trước ảnh
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   useEffect(() => {
     const fetchExistingCategories = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/products/categories');
+        const res = await fetch('http://localhost:5000/api/categories');
         const data = await res.json();
         if (Array.isArray(data)) {
-          setDbCategories(data);
-          if (data.length > 0) {
-            setFormData(prev => ({ ...prev, main_cat: data[0] }));
+          const catNames = data.map(cat => cat.name);
+          setDbCategories(catNames);
+          if (catNames.length > 0) {
+            setFormData(prev => ({ ...prev, main_cat: catNames[0] }));
           }
         }
       } catch (err) {
@@ -33,6 +38,15 @@ export const useAddProduct = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Hàm hứng file khi người dùng chọn từ máy tính
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -44,23 +58,39 @@ export const useAddProduct = () => {
     setIsLoading(true);
     setMessage('');
 
+    // ĐÓNG GÓI DẠNG FORMDATA (Để Multer Backend bắt được file)
+    const submitData = new FormData();
+    submitData.append('asin', formData.asin);
+    submitData.append('title', formData.title);
+    submitData.append('brand', formData.brand);
+    submitData.append('price', formData.price);
+    submitData.append('main_cat', formData.main_cat);
+    submitData.append('category', formData.category);
+    submitData.append('description', formData.description);
+    
+    if (imageFile) {
+      submitData.append('image', imageFile); // Trùng với 'image' ở uploadCloud.single('image')
+    }
+
     try {
       const res = await fetch('http://localhost:5000/api/products/add', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}` // KHÔNG cài Content-Type
         },
-        body: JSON.stringify(formData),
+        body: submitData,
       });
 
       const data = await res.json();
       
       if (res.ok) {
         setMessage('✅ ' + data.message);
-        setFormData(prev => ({
-          ...prev, item_id: '', title: '', brand: '', price: '', image_url_high: '', description: ''
-        }));
+        setFormData({
+          asin: '', title: '', brand: '', price: '', 
+          main_cat: dbCategories[0] || '', category: "['Electronics']", description: ''
+        });
+        setImageFile(null);
+        setPreviewUrl('');
       } else {
         setMessage('❌ ' + data.message); 
       }
@@ -71,5 +101,5 @@ export const useAddProduct = () => {
     }
   };
 
-  return { formData, dbCategories, message, isLoading, handleChange, handleSubmit };
+  return { formData, dbCategories, message, isLoading, handleChange, handleSubmit, previewUrl, handleFileChange };
 };

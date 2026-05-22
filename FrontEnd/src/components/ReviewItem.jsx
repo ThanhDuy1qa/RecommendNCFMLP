@@ -8,7 +8,7 @@ const ReviewItem = ({ review }) => {
       </span>
     ));
   };
-
+  
   return (
     <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 mb-4 hover:border-slate-500 transition-colors">
       
@@ -33,7 +33,6 @@ const ReviewItem = ({ review }) => {
       <h5 className="text-blue-300 font-bold mb-1.5 text-sm">{review.summary}</h5>
       <p className="text-slate-300 text-sm leading-relaxed">{review.reviewText}</p>
 
-      {/* ĐÃ SỬA: Kiểm tra an toàn cho Style */}
       {review.style && typeof review.style === 'object' && Object.keys(review.style).length > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-700 flex flex-wrap gap-2">
           {Object.entries(review.style).map(([key, value]) => (

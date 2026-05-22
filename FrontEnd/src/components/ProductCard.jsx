@@ -11,15 +11,12 @@ const ProductCard = ({ product }) => {
   return (
     <div 
       onClick={() => navigate(`/product/${product.asin}`)}
-      // Thêm 'group' để bắt sự kiện hover cho các phần tử con. 
-      // Bỏ các hiệu ứng làm thay đổi kích thước thẻ ở đây.
       className="relative group bg-slate-800 rounded-xl border border-slate-700 hover:border-blue-500 cursor-pointer transition-colors duration-300 flex flex-col h-full"
     >
       {/* ==========================================
           1. THẺ CHÍNH (LUÔN GIỮ KÍCH THƯỚC CỐ ĐỊNH)
           ========================================== */}
       <div className="p-3 flex flex-col h-full items-center">
-        {/* Khung ảnh cố định tỷ lệ 1:1 */}
         <div className="w-full aspect-square bg-white rounded-lg p-2 flex items-center justify-center overflow-hidden mb-3">
           <img 
             src={imgSrc} 
@@ -29,12 +26,12 @@ const ProductCard = ({ product }) => {
           />
         </div>
         
-        {/* Thương hiệu (Cắt chữ nếu quá dài) */}
+        {/* Thương hiệu */}
         <span className="text-[10px] sm:text-xs text-blue-400 font-semibold uppercase tracking-wider mb-1 text-center w-full truncate">
           {product.brand && product.brand !== "N/A" ? product.brand : "AMAZON"}
         </span>
         
-        {/* Tiêu đề (Đóng băng 2 dòng bằng line-clamp-2, thêm min-h để các thẻ luôn bằng nhau) */}
+        {/* Tiêu đề */}
         <h3 className="text-xs sm:text-sm text-slate-200 font-medium text-center line-clamp-2 mb-2 w-full min-h-[32px] sm:min-h-[40px]">
           {product.title}
         </h3>
@@ -48,8 +45,7 @@ const ProductCard = ({ product }) => {
       {/* ==========================================
           2. Ô NỔI THÔNG TIN (POPOVER GÓC PHẢI)
           ========================================== */}
-      {/* Mặc định tàng hình (opacity-0 invisible), khi hover vào 'group' thì hiện lên.
-          Thuộc tính absolute và z-[100] giúp nó nổi lên trên mọi thứ mà không đẩy layout */}
+
       <div 
         className="absolute opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] 
                    bg-slate-900 border border-blue-500 rounded-xl shadow-[0_0_30px_rgba(59,130,246,0.4)] 

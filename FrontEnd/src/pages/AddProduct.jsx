@@ -2,14 +2,13 @@ import React from 'react';
 import { useAddProduct } from '../hooks/useAddProduct';
 
 const AddProduct = () => {
-  // GỌI NÃO BỘ RA ĐÂY
-  const { formData, dbCategories, message, isLoading, handleChange, handleSubmit } = useAddProduct();
+  const { formData, dbCategories, message, isLoading, handleChange, handleSubmit, previewUrl, handleFileChange } = useAddProduct();
 
   return (
     <div className="bg-slate-900 min-h-screen p-8 text-slate-200">
       <div className="max-w-4xl mx-auto bg-slate-800 p-8 rounded-2xl border border-slate-700">
         <h2 className="text-3xl font-bold text-blue-400 mb-6 flex items-center gap-2">
-          <span>📦</span> Quản lý Kho hàng
+          <span>📦</span> Thêm Sản Phẩm Mới
         </h2>
 
         {message && <div className="p-4 mb-6 rounded-lg bg-slate-900 border border-blue-500/30 text-blue-400 font-semibold">{message}</div>}
@@ -21,7 +20,7 @@ const AddProduct = () => {
             <div className="space-y-5">
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Mã ASIN *</label>
-                <input required name="item_id" value={formData.item_id} onChange={handleChange} placeholder="Ví dụ: B00001P4XA" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none transition-colors" />
+                <input required name="asin" value={formData.asin} onChange={handleChange} placeholder="Ví dụ: B00001P4XA" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none transition-colors" />
               </div>
 
               <div>
@@ -50,20 +49,26 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* CỘT PHẢI (Chứa Ảnh và Mô tả) */}
+            {/* CỘT PHẢI */}
             <div className="space-y-5">
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Link ảnh sản phẩm (URL) *</label>
-                <input required name="image_url_high" value={formData.image_url_high} onChange={handleChange} placeholder="https://images-na.ssl-images-amazon.com/..." className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none transition-colors" />
+                <label className="block text-sm text-slate-400 mb-1">Hình ảnh sản phẩm *</label>
+                <input 
+                  type="file" 
+                  required
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600/20 file:text-blue-400 hover:file:bg-blue-600/40 transition-all cursor-pointer" 
+                />
               </div>
 
-              {/* Khu vực Preview Ảnh */}
-              <div className="w-full h-48 bg-slate-900 border border-slate-700 rounded-lg flex items-center justify-center overflow-hidden">
-                {formData.image_url_high ? (
+              {/* Khung Preview xem trước ảnh từ Cloud */}
+              <div className="w-full h-48 bg-slate-900 border border-slate-700 rounded-lg flex items-center justify-center overflow-hidden p-2">
+                {previewUrl ? (
                   <img 
-                    src={formData.image_url_high} 
+                    src={previewUrl} 
                     alt="Preview" 
-                    className="max-w-full max-h-full object-contain"
+                    className="max-w-full max-h-full object-contain rounded"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = "https://via.placeholder.com/400x300/1e293b/475569?text=Lỗi+hiển+thị+ảnh";

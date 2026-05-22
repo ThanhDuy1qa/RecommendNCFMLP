@@ -1,32 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import defaultIcon from '../assets/no-image.png'; 
 import { useMyProducts } from '../hooks/useMyProducts';
-import { useTopSales } from '../hooks/useTopSales';
-
 const MyProducts = () => {
-  const { products, loading, handleDelete } = useMyProducts();
-  const { topProducts, loadingTop } = useTopSales();
-
-  // BỔ SUNG: State để lưu vị trí bắt đầu cắt mảng Top Products
-  const [startIdx, setStartIdx] = useState(0);
-
-  // Hàm tiến tới (Xem 5 cái tiếp theo)
-  const handleNext = () => {
-    if (startIdx + 5 < topProducts.length) {
-      setStartIdx(prev => prev + 5);
-    }
-  };
-
-  // Hàm lùi lại (Xem 5 cái trước đó)
-  const handlePrev = () => {
-    if (startIdx - 5 >= 0) {
-      setStartIdx(prev => prev - 5);
-    }
-  };
-
-  // Cắt ra đúng 5 sản phẩm từ vị trí startIdx để hiển thị
-  const visibleTopProducts = topProducts.slice(startIdx, startIdx + 5);
+  // Gọi duy nhất 1 hook cấp page để lấy toàn bộ dữ liệu và hàm
+  const {
+    products, loading, handleDelete,
+    topProducts, loadingTop,
+    startIdx, handleNext, handlePrev, visibleTopProducts
+  } = useMyProducts();
 
   return (
     <div className="bg-slate-900 min-h-screen p-8 text-slate-200">
@@ -56,7 +38,7 @@ const MyProducts = () => {
                   className={`w-10 h-10 flex items-center justify-center rounded-full bg-slate-800 border border-slate-600 transition-all
                     ${startIdx === 0 ? 'opacity-50 cursor-not-allowed text-slate-500' : 'hover:bg-slate-700 hover:border-yellow-500 text-yellow-400'}`}
                 >
-                  &#8592; {/* Mũi tên trái */}
+                  &#8592;
                 </button>
                 <button 
                   onClick={handleNext} 
@@ -64,7 +46,7 @@ const MyProducts = () => {
                   className={`w-10 h-10 flex items-center justify-center rounded-full bg-slate-800 border border-slate-600 transition-all
                     ${startIdx + 5 >= topProducts.length ? 'opacity-50 cursor-not-allowed text-slate-500' : 'hover:bg-slate-700 hover:border-yellow-500 text-yellow-400'}`}
                 >
-                  &#8594; {/* Mũi tên phải */}
+                  &#8594;
                 </button>
               </div>
             )}
@@ -74,10 +56,8 @@ const MyProducts = () => {
             <div className="animate-pulse bg-slate-800 h-40 rounded-2xl border border-slate-700"></div>
           ) : topProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {/* LƯU Ý: Đã đổi map(topProducts) thành map(visibleTopProducts) */}
               {visibleTopProducts.map((topProd, index) => (
                 <div key={topProd.asin} className="bg-slate-800 p-4 rounded-xl border border-yellow-600/30 shadow-[0_0_15px_rgba(202,138,4,0.1)] hover:border-yellow-500 transition-all relative overflow-hidden group">
-                  {/* Badge Thứ hạng - Cập nhật logic tính thứ hạng cho đúng với trang */}
                   <div className="absolute top-0 left-0 bg-gradient-to-br from-yellow-400 to-orange-500 text-slate-900 font-black text-sm px-3 py-1 rounded-br-lg z-10 shadow-md">
                     #{startIdx + index + 1}
                   </div>
@@ -87,7 +67,7 @@ const MyProducts = () => {
                   </div>
                   <h3 className="text-sm font-bold text-slate-200 line-clamp-2 mb-2" title={topProd.title}>{topProd.title}</h3>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-green-400 font-bold">${topProd.price || 'N/A'}</span>
+                    <span className="text-green-400 font-bold">{topProd.price ? `$${topProd.price}` : 'Liên hệ'}</span>
                     <span className="text-yellow-400 font-bold">⭐ {topProd.avgRating}</span>
                   </div>
                   <div className="mt-2 text-xs text-center bg-slate-900/50 py-1.5 rounded text-blue-300 font-semibold border border-slate-700">

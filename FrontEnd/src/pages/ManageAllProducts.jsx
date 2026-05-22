@@ -14,15 +14,28 @@ const ManageAllProducts = () => {
             <span>🛡️</span> Quản Trị Hệ Thống Sản Phẩm
           </h1>
           
-          <div className="relative w-full md:w-96">
-            <input 
-              type="text"
-              placeholder="Tìm nhanh theo tên hoặc mã ASIN..."
-              value={search}
-              onChange={handleSearchChange}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none transition-all"
-            />
-            <span className="absolute right-4 top-3 opacity-50">🔍</span>
+          {/* BỔ SUNG NHÓM NÚT VÀ TÌM KIẾM Ở ĐÂY */}
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            
+            {/* NÚT THÊM SẢN PHẨM CHO ADMIN */}
+            <Link 
+              to="/admin/add-product" 
+              className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20 whitespace-nowrap"
+            >
+              + Thêm sản phẩm
+            </Link>
+
+            <div className="relative flex-grow md:w-80">
+              <input 
+                type="text"
+                placeholder="Tìm nhanh theo tên hoặc ASIN..."
+                value={search}
+                onChange={handleSearchChange}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none transition-all text-white"
+              />
+              <span className="absolute right-4 top-3 opacity-50">🔍</span>
+            </div>
+            
           </div>
         </div>
 

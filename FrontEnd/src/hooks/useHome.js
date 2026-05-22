@@ -2,15 +2,6 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import defaultIcon from '../assets/no-image.png'; 
 
-const importedIcons = import.meta.glob('../assets/categories/*.{png,jpg,jpeg,svg}', { eager: true });
-const CATEGORY_IMAGES = {};
-for (const path in importedIcons) {
-  const fileNameWithExt = path.split('/').pop(); 
-  const categoryName = fileNameWithExt.substring(0, fileNameWithExt.lastIndexOf('.')); 
-  const iconData = importedIcons[path];
-  CATEGORY_IMAGES[categoryName] = typeof iconData === 'string' ? iconData : (iconData?.default || iconData);
-}
-
 export const useHome = () => {
   const [categories, setCategories] = useState([]);
   
@@ -24,28 +15,35 @@ export const useHome = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   
-  const [visibleRecsCount, setVisibleRecsCount] = useState(9);
+  const [visibleRecsCount, setVisibleRecsCount] = useState(6);
   
   const location = useLocation();
 // Lấy hình danh mục 
+  // Lấy danh mục động từ Database
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/products/categories');
+        // LƯU Ý: Đây phải là đường link API gọi vào categoryController mới của bạn
+        const res = await fetch('http://localhost:5000/api/categories');
         const data = await res.json(); 
 
         if (Array.isArray(data)) {
             const formattedCategories = [
-              { name: "Tất cả", value: "", img: "https://cdn-icons-png.flaticon.com/512/8332/8332096.png" },
+              { 
+                name: "Tất cả", 
+                value: "", 
+                img: "https://cdn-icons-png.flaticon.com/512/8332/8332096.png" 
+              },
+              // Lấy dữ liệu thực từ MongoDB map ra
               ...data.map(cat => {
-                const cleanName = cat.replace(/&amp;/g, '&'); 
-                const matchedImage = CATEGORY_IMAGES[cleanName] || defaultIcon;
-                return { name: cleanName, value: cat, img: matchedImage };
+                return { 
+                    name: cat.name, 
+                    value: cat.name, 
+                    img: cat.image_url || defaultIcon // Nếu Admin chưa gắn ảnh, dùng ảnh mặc định
+                };
               })
             ];
             setCategories(formattedCategories);
-        } else {
-            console.error("Dữ liệu danh mục không hợp lệ:", data);
         }
       } catch (err) {
         console.error("Lỗi load danh mục từ DB:", err);
@@ -92,10 +90,8 @@ export const useHome = () => {
 
       const user = JSON.parse(storedUser);
       
-      // (Tùy chọn) Chỉ gọi API AI nếu người đăng nhập là Khách hàng (Role 0)
       if (user.role !== 0) return;
 
-      // 2. SỬA LỖI ID: Mã Amazon (A0220159ZRNBTRKLG08H) nằm ở trường username
       const reviewerId = user.username; 
       
       setLoadingRecs(true);
@@ -157,7 +153,7 @@ export const useHome = () => {
   };
 // Load thêm sản phẩm gợi ý
   const loadMoreRecs = () => {
-    setVisibleRecsCount(prev => prev + 9); 
+    setVisibleRecsCount(prev => prev + 6); 
   };
 
   return {

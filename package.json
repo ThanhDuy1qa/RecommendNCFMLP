@@ -4,10 +4,10 @@
   "description": "Hệ thống Gợi ý MERN Stack & Python AI",
   "main": "index.js",
   "scripts": {
-    "start": "concurrently -n \"NODE,REACT,AI\" -c \"bgBlue.bold,bgGreen.bold,bgMagenta.bold\" \"npm run server\" \"npm run client\" \"npm run ai\"",
+    "start": "concurrently -n \"NODE,REACT,AI\" -c \"bgBlue.bold,bgGreen.bold,bgMagenta.bold\" \"npm run server\" \"npm run client\"",
     "server": "cd BackEnd && node server.js",
     "client": "cd FrontEnd && npm run dev",
-    "ai": "cd \"ai-service/NCKH_270326/source_min_user=20, min_item=12/source\" && python app.py"
+    "ai": "cd \"ai-service/NCKH_270326/source_min_user=20, min_item=12/source\""
   },
   "repository": {
     "type": "git",

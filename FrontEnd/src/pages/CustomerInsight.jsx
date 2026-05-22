@@ -92,7 +92,7 @@ const CustomerInsight = () => {
 
             <div className="bg-slate-800 p-6 rounded-lg border border-blue-900 shadow-[0_0_20px_rgba(30,58,138,0.3)] flex flex-col h-[650px]">
               <h2 className="text-xl font-semibold mb-4 text-blue-400 flex justify-between items-center shrink-0">
-                <span>🤖 Kết Quả Gợi Ý AI</span>
+                <span>🤖 Kết Quả Gợi Ý</span>
                 {recommendations.length > 0 && (
                   <button 
                     onClick={handleGetRecommendations}
