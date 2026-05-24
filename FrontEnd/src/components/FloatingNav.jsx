@@ -137,20 +137,20 @@ const FloatingNav = () => {
         </Link>
       )}
 
-      {/* 🌟 MỚI: NÚT TRỢ LÝ NHẬP HÀNG (AI) - Dành cho Seller (1) và Admin (2) */}
-      {(role === 1 || role === 2) && (
+      {/* 🌟 NÚT SELLER DASHBOARD: Dành riêng cho Seller (Role 1) */}
+      {role === 1 && (
         <Link 
-          to="/seller/import-advisor" 
-          onClick={(e) => currentPath === '/seller/import-advisor' && e.preventDefault()}
-          className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-300 group relative border ${getBtnStyle('/seller/import-advisor')}`} 
+          to="/seller/dashboard" 
+          onClick={(e) => currentPath === '/seller/dashboard' && e.preventDefault()}
+          className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-300 group relative border ${getBtnStyle('/seller/dashboard')} shadow-[0_0_15px_rgba(16,185,129,0.5)]`} 
         >
-          📈
-          <span className="absolute right-full mr-4 bg-slate-800 text-slate-200 text-sm font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-            Trợ lý nhập hàng (AI)
+          🏪
+          <span className="absolute right-full mr-4 bg-slate-800 text-slate-200 text-sm font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            Quản trị gian hàng & AI
           </span>
         </Link>
       )}
-      
+
       {/* 7. CÁC NÚT RIÊNG CỦA ADMIN (Role 2) */}
       {role === 2 && (
         <Link 
@@ -160,7 +160,7 @@ const FloatingNav = () => {
         >
           ⚙️
           <span className="absolute right-full mr-4 bg-slate-800 text-slate-200 text-sm font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Bảng điều khiển (Tất cả tính năng)
+            Bảng điều khiển Admin
           </span>
         </Link>
       )}

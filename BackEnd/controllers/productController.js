@@ -2,8 +2,10 @@ const Product = require('../models/Product');
 const Recommendation = require('../models/Recommendation'); 
 const TrainData = require('../models/TrainData');
 const User = require('../models/User');
+const SmartCatalog = require('../models/SmartCatalog');
 const InventoryAdvice = require('../models/InventoryAdvice');
-const ScenarioSummary = require('../models/ScenarioSummary');
+const MarketingTarget = require('../models/MarketingTarget');
+
 // 2. Hàm lấy danh sách sản phẩm 
 const getProducts = async (req, res) => {
     try {
@@ -113,7 +115,6 @@ const getSearchSuggestions = async (req, res) => {
 };
 
 // 5. Hàm lấy danh sách chi tiết sản phẩm gợi ý từ AI Fusion
-// 5. Hàm lấy danh sách chi tiết sản phẩm gợi ý từ AI Fusion
 const getAiRecommendations = async (req, res) => {
     try {
         const rawId = req.params.reviewerId; 
@@ -128,7 +129,7 @@ const getAiRecommendations = async (req, res) => {
         }
 
         // BƯỚC 1: Lấy dư ra 60 gợi ý từ AI để trừ hao các sản phẩm đã bị xóa
-        const recs = await Recommendation.find({ user_id: userId }).sort({ rank: 1 }).limit(60);
+        const recs = await Recommendation.find({ user_id: userId }).sort({ rank: 1 }).limit(200);
         if (recs.length === 0) return res.json([]); 
         
         const aiItemIds = recs.map(rec => rec.item_id);
@@ -147,7 +148,7 @@ const getAiRecommendations = async (req, res) => {
 
         // BƯỚC 3: CHỐT SỔ - Cắt lấy chính xác 20 sản phẩm hợp lệ, điểm cao nhất
         // Dù Bước 2 còn lại 28 hay 59 sản phẩm, dòng này sẽ ép nó về đúng 20!
-        const finalValidProducts = sortedProducts.slice(0, 24);
+        const finalValidProducts = sortedProducts.slice(0, 100);
 
         // BƯỚC 4: Format dữ liệu trả về cho React
         const formattedRecommendations = finalValidProducts.map(prod => {
@@ -199,17 +200,93 @@ const addProduct = async (req, res) => {
         res.status(500).json({ message: "Lỗi Server khi thêm sản phẩm" });
     }
 };
-
+// Hàm lấy danh sách sản phẩm của Seller (Đã gộp AI Data)
+// Hàm lấy danh sách sản phẩm của Seller (Đã sửa logic bóc tách mảng lồng AI)
 const getMyProducts = async (req, res) => {
     try {
         const sellerId = req.user.id; 
-        const products = await Product.find({ seller_id: sellerId }).sort({ createdAt: -1 });
-        res.json(products);
+        
+        // 1. Lấy toàn bộ sản phẩm của Shop
+        const products = await Product.find({ seller_id: sellerId }).sort({ createdAt: -1 }).lean();
+        const asinList = products.map(p => p.asin);
+
+        // =====================================================================
+        // ĐÃ SỬA: Bóc tách mảng lồng của InventoryAdvice y hệt bên AnalyticsController
+        // =====================================================================
+        const aiInventoryDoc = await InventoryAdvice.findOne({
+            $or: [
+                { inventory: { $exists: true } }, 
+                { best_inventory_items: { $exists: true } }, 
+                { explainable_procurement: { $exists: true } }
+            ]
+        }).lean();
+        
+        let aiInventoryItems = [];
+        if (aiInventoryDoc) {
+            const invObject = aiInventoryDoc.inventory || aiInventoryDoc;
+            aiInventoryItems = invObject.best_inventory_items || invObject.explainable_procurement || [];
+        }
+
+        // =====================================================================
+        // ĐÃ SỬA: Bóc tách mảng lồng của MarketingTarget y hệt bên AnalyticsController
+        // =====================================================================
+        const aiMarketingDoc = await MarketingTarget.findOne({
+            $or: [
+                { marketing: { $exists: true } }, 
+                { best_marketing_targets: { $exists: true } }
+            ]
+        }).lean();
+        
+        let aiMarketingItems = [];
+        if (aiMarketingDoc) {
+            const mktObject = aiMarketingDoc.marketing || aiMarketingDoc;
+            aiMarketingItems = aiMarketingDoc.best_marketing_targets || mktObject.best_marketing_targets || [];
+        }
+
+        // 3. Đắp dữ liệu AI vào Sản phẩm gốc bằng cách duyệt tìm trên mảng đã được giải phẳng
+        const enrichedProducts = products.map(prod => {
+            // Khớp nối thông minh qua cả ASIN lẫn numeric item_id để chống lệch kiểu dữ liệu
+            const invMatch = aiInventoryItems.find(ai => ai.asin === prod.asin || String(ai.item_id) === String(prod.item_id));
+            const mktMatch = aiMarketingItems.find(ai => ai.asin === prod.asin || String(ai.item_id) === String(prod.item_id));
+
+            let inventoryAction = "monitor"; 
+            let predictedUsers = 0;
+            let isMarketing = false;
+
+            if (invMatch) {
+                const rawAction = String(invMatch.inventory_action || invMatch.inventory_decision || invMatch.procurement_decision_type || "").toLowerCase();
+                
+                if (rawAction.includes("high") || rawAction.includes("ưu tiên")) {
+                    inventoryAction = "priority_import";
+                } else if (rawAction.includes("medium") || rawAction.includes("cân nhắc") || rawAction.includes("nhập thử")) {
+                    inventoryAction = "consider_import";
+                } else if (rawAction.includes("over") || rawAction.includes("tránh") || rawAction.includes("low") || rawAction.includes("hạn chế")) {
+                    inventoryAction = "avoid_import";
+                }
+                
+                predictedUsers = invMatch.predicted_user_count || invMatch.historical_unique_users || 0;
+            }
+
+            if (mktMatch) {
+                isMarketing = true;
+                const mktUsers = mktMatch.target_user_count || mktMatch.predicted_user_count || 0;
+                predictedUsers = Math.max(predictedUsers, mktUsers);
+            }
+
+            return {
+                ...prod,
+                ai_inventory_action: inventoryAction,
+                ai_predicted_users: predictedUsers,
+                ai_is_marketing: isMarketing
+            };
+        });
+
+        res.json(enrichedProducts);
     } catch (error) {
+        console.error("Lỗi lấy danh sách sản phẩm AI của seller:", error);
         res.status(500).json({ message: "Lỗi khi lấy danh sách sản phẩm của bạn" });
     }
 };
-
 // Hàm Xóa sản phẩm
 const deleteProduct = async (req, res) => {
     try {
@@ -277,6 +354,7 @@ const getProductById = async (req, res) => {
 };
 
 // Hàm thống kê Top 5 sản phẩm bán chạy
+// Hàm thống kê Top 5 sản phẩm bán chạy
 const getTopSellingProducts = async (req, res) => {
     try {
         let matchStage = {};
@@ -285,8 +363,9 @@ const getTopSellingProducts = async (req, res) => {
         // Nếu là Seller, lọc để chỉ lấy ID các sản phẩm của họ
         if (req.user.role !== 2) {
             const sellerId = req.user.id; 
-            // ĐÃ SỬA: Lấy thêm trường image_url để đề phòng image_url_high bị rỗng
-            sellerProducts = await Product.find({ seller_id: sellerId }).select('asin title image_url_high image_url price');
+            // 🌟 SỬA ĐIỂM 1: Bổ sung main_cat vào hàm select
+            sellerProducts = await Product.find({ seller_id: sellerId })
+                                          .select('asin title image_url_high image_url price main_cat');
             if (sellerProducts.length === 0) return res.json([]); 
             
             const sellerAsins = sellerProducts.map(p => p.asin);
@@ -309,23 +388,23 @@ const getTopSellingProducts = async (req, res) => {
         // Nếu là Admin, lấy tất cả
         if (req.user.role === 2) {
             const topAsins = topStats.map(stat => stat._id);
-            // ĐÃ SỬA: Lấy thêm trường image_url
-            sellerProducts = await Product.find({ asin: { $in: topAsins } }).select('asin title image_url_high image_url price');
+            // 🌟 SỬA ĐIỂM 2: Bổ sung main_cat vào hàm select
+            sellerProducts = await Product.find({ asin: { $in: topAsins } })
+                                          .select('asin title image_url_high image_url price main_cat');
         }
 
         const topProducts = topStats.map(stat => {
             const productInfo = sellerProducts.find(p => p.asin === stat._id);
             
-            // ĐÃ FIX LỖI 1 & 2 TẠI ĐÂY
             return {
                 asin: stat._id,
                 title: productInfo?.title || "Sản phẩm không xác định",
-                // Ưu tiên image_url_high, nếu không có thì lấy image_url
                 image: productInfo?.image_url_high || productInfo?.image_url || null,
-                // Ép thành số, làm tròn 2 chữ số (Frontend không cần tự gắn $ nữa)
                 price: productInfo?.price ? parseFloat(productInfo.price).toFixed(2) : null,
                 totalSales: stat.totalSales,
-                avgRating: stat.avgRating ? stat.avgRating.toFixed(1) : 0
+                avgRating: stat.avgRating ? stat.avgRating.toFixed(1) : 0,
+                // 🌟 SỬA ĐIỂM 3: Ánh xạ main_cat trả về cho Frontend
+                main_cat: productInfo?.main_cat || "Chưa phân loại"
             };
         });
 
@@ -335,19 +414,17 @@ const getTopSellingProducts = async (req, res) => {
         res.status(500).json({ message: "Lỗi Server khi thống kê" });
     }
 };
-
-// Hàm tổng hợp dữ liệu phân tích hệ thống gợi ý AI dành cho Admin (ĐÃ TỐI ƯU HIỆU NĂNG)
+// Hàm tổng hợp dữ liệu phân tích hệ thống gợi ý AI dành cho Admin
+// Hàm tổng hợp dữ liệu phân tích hệ thống gợi ý AI dành cho Admin
 const getAdminAiAnalytics = async (req, res) => {
     try {
-        if (req.user.role !== 2) {
-            return res.status(403).json({ message: "Từ chối truy cập! Quyền hạn không đủ." });
-        }
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 15;
         const search = req.query.search || "";
 
         // --- 1. TẠO BỘ LỌC TÌM KIẾM ---
+        // [Giữ nguyên code phần này...]
         let matchStage = {};
         if (search) {
             if (!isNaN(search)) {
@@ -367,51 +444,52 @@ const getAdminAiAnalytics = async (req, res) => {
         }
 
         // =====================================================================
-        // TỐI ƯU 1: CHẠY SONG SONG (PARALLEL EXECUTION) 2 TÁC VỤ NẶNG NHẤT
+        // TỐI ƯU 1: CHẠY SONG SONG 2 TÁC VỤ
         // =====================================================================
         const [topRecommendedStats, uniqueUserIds] = await Promise.all([
-            // Tác vụ A: Tính Top 10 sản phẩm (Chạy trên background)
             Recommendation.aggregate([
                 { $group: { _id: "$item_id", totalUsersTargeted: { $sum: 1 }, avgAiScore: { $avg: "$hybrid_score" } } },
                 { $sort: { totalUsersTargeted: -1 } },
-                { $limit: 10 }
+                // 🌟 SỬA ĐIỂM 1: TĂNG LIMIT LÊN 100 ĐỂ CÓ NHIỀU TRANG DỮ LIỆU
+                { $limit: 300 } 
             ]),
-            // Tác vụ B: Lấy danh sách ID người dùng (Chỉ lấy ID nên siêu nhanh)
             Recommendation.distinct('user_id', matchStage)
         ]);
 
-        // --- XỬ LÝ KẾT QUẢ TÁC VỤ A (TOP 10 SẢN PHẨM) ---
-        const aiItemIds = topRecommendedStats.map(item => item._id);
+        const aiItemIds = topRecommendedStats.map(s => s._id);
         const itemMappings = await TrainData.find({ item: { $in: aiItemIds } });
         const asinList = itemMappings.map(m => m.item_id);
         const rawProducts = await Product.find({ asin: { $in: asinList } }, 'asin title image_url_high image_url price');
-        
+
+        // --- XỬ LÝ KẾT QUẢ TÁC VỤ A ---
         const topProductsFormatted = topRecommendedStats.map(stat => {
-            const mapObj = itemMappings.find(m => m.item === stat._id);
+            const statId = Number(stat._id);
+            const mapObj = itemMappings.find(m => Number(m.item) === statId);
             if (!mapObj) return null;
+
             const prod = rawProducts.find(p => p.asin === mapObj.item_id);
+            if (!prod || !prod.title || prod.title.toLowerCase().includes('xóa')) return null;
+
             return {
                 asin: mapObj.item_id,
-                title: prod?.title || "Sản phẩm đã bị xóa khỏi kho hàng",
-                image: prod?.image_url_high || prod?.image_url || null,
-                price: prod?.price ? `$${parseFloat(prod.price).toFixed(2)}` : "N/A",
-                frequency: stat.totalUsersTargeted,
-                score: stat.avgAiScore ? stat.avgAiScore.toFixed(4) : 0
+                title: prod.title,
+                image: prod.image_url_high || prod.image_url || null,
+                price: prod.price ? `$${parseFloat(prod.price).toFixed(2)}` : "N/A",
+                count: Math.round(stat.totalUsersTargeted || 0), 
+                score: typeof stat.avgAiScore === 'number' ? stat.avgAiScore : 0      
             };
-        }).filter(p => p !== null);
+        }).filter(p => p !== null).slice(0, 100);
+        // 🌟 SỬA ĐIỂM 2: XÓA ĐOẠN ".slice(0, 10)" Ở ĐÂY ĐỂ TRẢ VỀ TOÀN BỘ TOP SẢN PHẨM HỢP LỆ (Lên tới 100 cái)
 
         // =====================================================================
-        // TỐI ƯU 2: KỸ THUẬT PHÂN TRANG "PRE-FILTERING" TRONG RAM
+        // TỐI ƯU 2 & 3: [Giữ nguyên toàn bộ code cũ bên dưới của bạn]
         // =====================================================================
         const totalUsers = uniqueUserIds.length;
-        
-        // Sắp xếp ID và CẮT RA ĐÚNG 15 NGƯỜI cho trang hiện tại (Thao tác trong RAM tốn 0.001s)
         uniqueUserIds.sort((a, b) => a - b);
         const paginatedUserIds = uniqueUserIds.slice((page - 1) * limit, page * limit);
 
-        // Chạy Aggregate NHƯNG CHỈ TRÊN ĐÚNG 15 NGƯỜI ĐÓ (Tránh phải gom nhóm hàng vạn người)
         const bulkUserRecommendations = await Recommendation.aggregate([
-            { $match: { user_id: { $in: paginatedUserIds } } }, // <--- Chìa khóa tăng tốc độ ở đây!
+            { $match: { user_id: { $in: paginatedUserIds } } },
             { $sort: { user_id: 1, rank: 1 } },
             {
                 $group: {
@@ -422,41 +500,28 @@ const getAdminAiAnalytics = async (req, res) => {
             { $sort: { _id: 1 } }
         ]);
 
-        // Đổ ngược thông tin từ bảng User
-        // Đổ ngược thông tin từ bảng User
         const currentAiUserIds = bulkUserRecommendations.map(u => u._id.toString());
         const appUsers = await User.find({ username: { $in: currentAiUserIds } }, 'name email amazon_id username');
 
-        // =====================================================================
-        // TỐI ƯU 3: DỊCH MÃ SẢN PHẨM HÀNG LOẠT (TỪ SỐ SANG HÌNH ẢNH & TÊN)
-        // =====================================================================
-        // 1. Gom tất cả ID số của 5 sản phẩm xem trước từ 15 khách hàng (tránh truy vấn lặp)
-        const allPreviewItemIds = [...new Set(bulkUserRecommendations.flatMap(u => u.recommendedItems.slice(0, 5)))];
-        
-        // 2. Tra cứu TrainData 1 lần duy nhất để lấy mã ASIN
+        const allPreviewItemIds = [...new Set(bulkUserRecommendations.flatMap(u => u.recommendedItems.slice(0, 15)))];
         const previewItemMappings = await TrainData.find({ item: { $in: allPreviewItemIds } });
         const previewAsinList = previewItemMappings.map(m => m.item_id);
-
-        // 3. Tra cứu Product 1 lần duy nhất để lấy Tên và Ảnh
         const previewProducts = await Product.find({ asin: { $in: previewAsinList } }, 'asin title image_url_high image_url price');
 
-        // Format lại dữ liệu đầu ra cho Admin
         const userAnalyticsFormatted = bulkUserRecommendations.map(u => {
             const userInfo = appUsers.find(usr => usr.username === u._id.toString());
-
-            // 4. Lắp ráp dữ liệu chi tiết cho 5 sản phẩm xem trước
-            const detailedPreviewItems = u.recommendedItems.slice(0, 5).map(numericId => {
-                const mapObj = previewItemMappings.find(m => m.item === numericId);
+            const validPreviewItems = u.recommendedItems.slice(0, 15).map(numericId => {
+                const mapObj = previewItemMappings.find(m => Number(m.item) === Number(numericId));
                 const prodInfo = mapObj ? previewProducts.find(p => p.asin === mapObj.item_id) : null;
-                
+                if (!prodInfo || !prodInfo.title || prodInfo.title.toLowerCase().includes('xóa')) return null;
                 return {
-                    aiItemId: numericId, // Vẫn giữ số ID cũ để Admin đối soát nếu cần
-                    asin: mapObj ? mapObj.item_id : "N/A",
-                    title: prodInfo?.title || "Sản phẩm không xác định (Bị xóa)",
-                    image: prodInfo?.image_url_high || prodInfo?.image_url || null,
-                    price: prodInfo?.price ? `$${parseFloat(prodInfo.price).toFixed(2)}` : "N/A"
+                    aiItemId: numericId,
+                    asin: mapObj.item_id,
+                    title: prodInfo.title,
+                    image: prodInfo.image_url_high || prodInfo.image_url || null,
+                    price: prodInfo.price ? `$${parseFloat(prodInfo.price).toFixed(2)}` : "N/A"
                 };
-            });
+            }).filter(item => item !== null).slice(0, 5);
 
             return {
                 aiUserId: u._id,
@@ -464,11 +529,10 @@ const getAdminAiAnalytics = async (req, res) => {
                 name: userInfo?.name || `Khách hàng AI #${u._id}`,
                 email: userInfo?.email || `user${u._id}@datn.com`,
                 totalCount: u.recommendedItems.length,
-                previewItems: detailedPreviewItems // Trả về mảng Object chi tiết thay vì mảng số
+                previewItems: validPreviewItems 
             };
         });
 
-        // Trả kết quả
         res.json({
             topProducts: topProductsFormatted,
             userAnalytics: userAnalyticsFormatted,
@@ -485,86 +549,37 @@ const getAdminAiAnalytics = async (req, res) => {
         res.status(500).json({ message: "Lỗi nội bộ Server" });
     }
 };
-// =========================================================
-// API 1: Tải danh sách Trợ lý Nhập hàng (Có tìm kiếm & phân trang)
-// =========================================================
-// =========================================================
-// API 1: Tải danh sách Trợ lý Nhập hàng (ĐÃ THÊM PHÂN QUYỀN SELLER / ADMIN)
-// =========================================================
-const getInventoryAdvice = async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const scenario = req.query.scenario || "users500_topk20_user_focus"; 
-        const decision = req.query.decision || "";
-        const search = req.query.search || "";
 
-        // Tạo bộ lọc truy vấn gốc
-        let query = { scenario: scenario };
-        if (decision) query.inventory_decision = decision;
-        
-        // ===============================================================
-        // 🔒 CƠ CHẾ PHÂN QUYỀN CÁCH LY DỮ LIỆU (DATA ISOLATION)
-        // ===============================================================
-        // req.user.role === 2 là Admin. Nếu khác 2 thì chắc chắn là Seller
-       if (req.user && req.user.role !== 2) {
-            // 1. Quét bảng Product tìm tất cả sản phẩm mà Seller này ĐANG SỞ HỮU
-            // Dùng select('item_id') để query chạy siêu nhẹ, chỉ lấy đúng cột mã AI
-            const myProducts = await Product.find({ seller_id: req.user.id }).select('item_id');
-            
-            // 2. Rút trích ra một mảng chỉ chứa các con số item_id
-            const myItemIds = myProducts.map(p => p.item_id).filter(id => id != null);
-            
-            // 3. Ép điều kiện: Bảng gợi ý AI chỉ được hiển thị những item_id nằm trong kho của Seller này
-            // Nếu Seller chưa có sản phẩm nào (myItemIds rỗng), MongoDB sẽ tự hiểu và trả về mảng rỗng (Không cho xem gì cả)
-            query.item_id = { $in: myItemIds };
-        }
-        // ===============================================================
+// BackEnd/controllers/productController.js (Hàm getScenarioSummary cập nhật)
 
-        if (search) {
-            const searchRegex = { $regex: search, $options: 'i' };
-            if (!isNaN(search)) {
-                query.$or = [
-                    { title: searchRegex },
-                    { item_id: Number(search) }
-                ];
-            } else {
-                query.$or = [
-                    { title: searchRegex },
-                    { brand: searchRegex }
-                ];
-            }
-        }
-
-        const totalItems = await InventoryAdvice.countDocuments(query);
-        const items = await InventoryAdvice.find(query)
-            .sort({ user_based_inventory_rank: 1 }) 
-            .skip((page - 1) * limit)
-            .limit(limit)
-            .lean(); 
-
-        res.json({
-            items,
-            pagination: {
-                totalItems,
-                currentPage: page,
-                totalPages: Math.ceil(totalItems / limit)
-            }
-        });
-    } catch (error) {
-        console.error("Lỗi lấy dữ liệu nhập hàng:", error);
-        res.status(500).json({ message: "Lỗi lấy dữ liệu nhập hàng" });
-    }
-};
-// API 2: Lấy danh sách tổng hợp kịch bản thuật toán phục vụ vẽ biểu đồ so sánh
 const getScenarioSummary = async (req, res) => {
     try {
-        const summaries = await ScenarioSummary.find().sort({ final_rank: 1 });
-        res.json(summaries);
+        const allData = await SmartCatalog.findOne({
+            $or: [
+                { scenario: { $exists: true } },
+                { page: "compact" }
+            ]
+        }).lean() || await SmartCatalog.findOne({}).lean();
+
+        if (!allData) {
+            return res.status(404).json({ message: "Không tìm thấy dữ liệu kịch bản trong hệ thống" });
+        }
+
+        // Bóc tách đối tượng chứa scenario
+        const scenarioObj = allData.scenario || allData;
+        const list = scenarioObj.scenario_selection || [];
+
+        // Sắp xếp thứ hạng kịch bản từ cao xuống thấp
+        const sortedList = list.sort((a, b) => (a.final_rank || 1) - (b.final_rank || 1));
+        
+        res.json(sortedList);
     } catch (error) {
-        res.status(500).json({ message: "Lỗi lấy tóm tắt thuật toán" });
+        console.error("Lỗi lấy tóm tắt kịch bản:", error);
+        res.status(500).json({ message: "Lỗi hệ thống khi tải kịch bản đối soát" });
     }
 };
+
+
 module.exports = {
     getProducts,
     getProductByAsin,
@@ -577,6 +592,5 @@ module.exports = {
     getProductById,
     getTopSellingProducts,
     getAdminAiAnalytics,
-    getInventoryAdvice,
     getScenarioSummary
 };

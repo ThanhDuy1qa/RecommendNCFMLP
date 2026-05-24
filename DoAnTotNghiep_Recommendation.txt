@@ -8,7 +8,7 @@ npm install recharts
 npm install cloudinary multer multer-storage-cloudinary
 frontend react.js, vite, tailwindCSS
 backend node.js express.js
-database mongoDB
+database mongo DB
 AI service: python,fastAPI,pytorch,pandas,numpy,scikit-learn
 
 DoAnTotNghiep_Recommendation/

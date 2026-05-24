@@ -1,41 +1,53 @@
 export const formatProduct = (prod) => {
   if (!prod) return null;
 
-  // 1. LÀM SẠCH GIÁ: Ép kiểu về số, nếu hợp lệ thì format "$10.00"
+  // 1. LÀM SẠCH GIÁ
   const getFormattedPrice = (rawPrice) => {
     if (!rawPrice) return "Liên hệ";
+    
+    // NẾU BACKEND ĐÃ FORMAT SẴN DẤU "$" (VD: "$17.98") -> Trả về luôn
+    if (typeof rawPrice === 'string' && rawPrice.startsWith('$')) {
+      return rawPrice;
+    }
+    
+    // Nếu là dữ liệu thô từ DB (VD: 17.98999) -> Format lại
     const numPrice = Number(rawPrice);
     return (!isNaN(numPrice) && numPrice > 0) ? `$${numPrice.toFixed(2)}` : "Liên hệ";
   };
 
-  // 2. LẤY ẢNH CHUẨN: Hỗ trợ cả 2 chuẩn tên biến (cũ/mới) và 2 chuẩn kiểu dữ liệu (String/Array)
+  // 2. LẤY ẢNH CHUẨN
   const getBestImage = () => {
+    // NẾU BACKEND ĐÃ ĐỔI TÊN CỘT THÀNH "image" -> Lấy luôn
+    if (prod.image && typeof prod.image === 'string' && prod.image.trim() !== '') {
+      return prod.image;
+    }
+
+    // Nếu là dữ liệu thô từ DB, tìm các cột image_url
     const highRes = prod.image_url_high || prod.imageURLHighRes;
     const normal = prod.image_url || prod.imageURL;
     
-    // Check ảnh High-res
     if (Array.isArray(highRes) && highRes.length > 0) return highRes[0];
     if (typeof highRes === 'string' && highRes.trim() !== '') return highRes;
     
-    // Fallback ảnh Normal
     if (Array.isArray(normal) && normal.length > 0) return normal[0];
     if (typeof normal === 'string' && normal.trim() !== '') return normal;
     
-    return null; // Giao diện Component tự render ảnh No-Image
+    return null;
   };
 
-  // 3. LÀM SẠCH DANH MỤC: An toàn cho cả Array và String
+  // 3. LÀM SẠCH DANH MỤC
   const getCategory = () => {
     if (!prod.category) return "Điện tử";
     if (Array.isArray(prod.category)) {
       return prod.category.slice(-2).join(" > ");
     }
-    return String(prod.category); // Đảm bảo trả về chuỗi
+    return String(prod.category); 
   };
 
   // 4. TRẢ VỀ OBJECT CHUẨN HÓA
   return {
-    asin: prod.asin || prod.item_id || "N/A", // Phòng hờ lỗi không có ASIN
+    _id: prod._id || null, // Giữ lại _id để không bị lỗi Key trong React Map
+    asin: prod.asin || prod.item_id || "N/A", 
     title: prod.title || "Sản phẩm không có tiêu đề",
     brand: prod.brand || "NO BRAND",
     price: getFormattedPrice(prod.price),

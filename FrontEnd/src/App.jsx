@@ -24,8 +24,10 @@ import ManageCategories from './pages/ManageCategories';
 import UserProfile from './pages/UserProfile';
 import UserReviews from './pages/UserReviews';
 import AdminOrders from './pages/AdminOrders';
-import ImportAdvisor from './pages/ImportAdvisor';
+import InventoryAdvisor from './pages/InventoryAdvisor';
 import AdminAiAnalytics from './pages/AdminAiAnalytics';
+import SmartCatalog from './pages/SmartCatalog';
+import SellerDashboard from './pages/SellerDashboard';
 const App = () => {
   return (
     // 1. ROUTER PHẢI NẰM NGOÀI CÙNG NHẤT
@@ -46,6 +48,7 @@ const App = () => {
                 <Route path="/order-history" element={<OrderHistory />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/profile" element={<UserProfile />} />
+                <Route path="/discover" element={<SmartCatalog />} />
                 
                 <Route path="/profile" element={
                   <ProtectedRoute allowedRoles={[0, 1, 2]}>
@@ -85,10 +88,16 @@ const App = () => {
 
                 <Route path="/seller/import-advisor" element={
                   <ProtectedRoute allowedRoles={[1, 2]}>
-                    <ImportAdvisor />
+                    <InventoryAdvisor />
                   </ProtectedRoute>
                 } />
-                
+
+
+                <Route path="/seller/dashboard" element={
+                  <ProtectedRoute allowedRoles={[1, 2]}>
+                    <SellerDashboard />
+                  </ProtectedRoute>
+                } />
                 {/* ====================================================
                     KHU VỰC TỐI CAO CHỈ DÀNH CHO ADMIN (Role 2) 
                     ==================================================== */}

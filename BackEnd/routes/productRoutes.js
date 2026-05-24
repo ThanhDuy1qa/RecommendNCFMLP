@@ -5,8 +5,6 @@ const uploadProductCloud = require('../config/cloudinaryProduct');// Đã thêm 
 const { verifySeller, verifyToken } = require('../middleware/authMiddleware');
 
 // 1. Gợi ý tìm kiếm
-router.get('/seller/inventory-advice', verifyToken, productController.getInventoryAdvice);
-router.get('/admin/scenario-summary', verifyToken, productController.getScenarioSummary);
 router.get('/admin/ai-analytics', verifyToken, productController.getAdminAiAnalytics);
 router.get('/suggest', productController.getSearchSuggestions);
 router.get('/seller/top-sales', verifyToken, productController.getTopSellingProducts);
@@ -20,6 +18,8 @@ router.delete('/delete/:id', verifyToken, productController.deleteProduct);
 router.post('/add', verifyToken, uploadProductCloud.single('image'), productController.addProduct);
 // 5. LẤY GỢI Ý AI
 router.get('/recommendations/:reviewerId', productController.getAiRecommendations);
+
+router.get('/admin/scenario-summary', verifyToken, productController.getScenarioSummary);
 
 // 6. Lấy danh sách sản phẩm chung
 router.get('/', productController.getProducts);

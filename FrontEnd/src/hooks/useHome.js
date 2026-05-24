@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; 
 import { useLocation } from 'react-router-dom';
 import defaultIcon from '../assets/no-image.png'; 
+import { formatProduct } from '../utils/productHelper'; // BỔ SUNG: Import hàm chuẩn hóa
 
 export const useHome = () => {
   const [categories, setCategories] = useState([]);
-  
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -14,34 +14,23 @@ export const useHome = () => {
 
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
-  
   const [visibleRecsCount, setVisibleRecsCount] = useState(6);
   
   const location = useLocation();
-// Lấy hình danh mục 
-  // Lấy danh mục động từ Database
+
+  // 1. Lấy danh mục động từ Database
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        // LƯU Ý: Đây phải là đường link API gọi vào categoryController mới của bạn
         const res = await fetch('http://localhost:5000/api/categories');
         const data = await res.json(); 
 
         if (Array.isArray(data)) {
             const formattedCategories = [
-              { 
-                name: "Tất cả", 
-                value: "", 
-                img: "https://cdn-icons-png.flaticon.com/512/8332/8332096.png" 
-              },
-              // Lấy dữ liệu thực từ MongoDB map ra
-              ...data.map(cat => {
-                return { 
-                    name: cat.name, 
-                    value: cat.name, 
-                    img: cat.image_url || defaultIcon // Nếu Admin chưa gắn ảnh, dùng ảnh mặc định
-                };
-              })
+              { name: "Tất cả", value: "", img: "https://cdn-icons-png.flaticon.com/512/8332/8332096.png" },
+              ...data.map(cat => ({ 
+                  name: cat.name, value: cat.name, img: cat.image_url || defaultIcon 
+              }))
             ];
             setCategories(formattedCategories);
         }
@@ -52,11 +41,10 @@ export const useHome = () => {
     fetchCategories();
   }, []);
 
-// Lấy danh sách sản phẩm theo trang, tìm kiếm và lọc danh mục
+  // 2. Lấy danh sách sản phẩm chung
   const fetchProducts = async (pageNumber, searchKeyword, catFilter, isReset = false) => {
     if (loading) return; 
     setLoading(true);
-
     try {
       const url = `http://localhost:5000/api/products?page=${pageNumber}&limit=45&search=${searchKeyword}&category=${encodeURIComponent(catFilter)}`;
       const res = await fetch(url);
@@ -67,10 +55,16 @@ export const useHome = () => {
         if (isReset) setProducts([]); 
       } else {
         setHasMore(true); 
+        
+        // ==========================================
+        // ÁP DỤNG UTILS: Chuẩn hóa dữ liệu sản phẩm
+        // ==========================================
+        const safeData = data.map(prod => formatProduct(prod)).filter(p => p !== null);
+
         if (isReset) {
-          setProducts(data); 
+          setProducts(safeData); 
         } else {
-          setProducts(prevProducts => [...prevProducts, ...data]); 
+          setProducts(prevProducts => [...prevProducts, ...safeData]); 
         }
       }
     } catch (err) {
@@ -79,63 +73,74 @@ export const useHome = () => {
       setLoading(false);
     }
   };
-// Danh sách sản phẩm gợi ý 
-  // Danh sách sản phẩm gợi ý từ kiến trúc Fusion (lấy trực tiếp từ MongoDB)
-// Danh sách sản phẩm gợi ý từ kiến trúc Fusion (lấy trực tiếp từ MongoDB)
+
+  // 3. Lấy sản phẩm gợi ý Fusion 
   useEffect(() => {
     const fetchRecommendations = async () => {
-      // 1. SỬA LỖI KEY: Lấy đúng 'user' từ LocalStorage
       const storedUser = localStorage.getItem('user');
       if (!storedUser) return;
-
-      const user = JSON.parse(storedUser);
       
+      const user = JSON.parse(storedUser);
       if (user.role !== 0) return;
 
       const reviewerId = user.username; 
-      
       setLoadingRecs(true);
       
       try {
-        console.log("⚡ Đang lấy gợi ý Fusion từ MongoDB cho:", reviewerId);
-        
-        // GỌI TRỰC TIẾP SANG NODE.JS (Cổng 5000)
         const res = await fetch(`http://localhost:5000/api/products/recommendations/${reviewerId}`);
-        
-        if (!res.ok) {
-          throw new Error("Không thể lấy dữ liệu gợi ý từ server");
-        }
+        if (!res.ok) throw new Error("Không thể lấy dữ liệu gợi ý từ server");
         
         const productsData = await res.json();
-
         if (productsData && productsData.length > 0) {
-          console.log("✅ Đã nhận danh sách gợi ý:", productsData.length, "sản phẩm");
-          setRecommendations(productsData);
+          // ==========================================
+          // ÁP DỤNG UTILS: Chuẩn hóa dữ liệu gợi ý AI
+          // ==========================================
+          const safeRecommendations = productsData.map(prod => formatProduct(prod)).filter(p => p !== null);
+          setRecommendations(safeRecommendations);
         } else {
-          console.log("⚠️ Khách hàng này chưa có dữ liệu gợi ý trong bảng Recommendations.");
           setRecommendations([]);
         }
       } catch (error) {
-        console.error("❌ Lỗi load gợi ý AI:", error.message);
         setRecommendations([]);
       } finally {
         setLoadingRecs(false);
       }
     };
-
     fetchRecommendations();
-  }, []); // Chỉ chạy 1 lần khi component mount
-//Xử lý tìm kiếm header
+  }, []); 
+
+  // =========================================================
+  // THUẬT TOÁN LỌC AI THEO DANH MỤC (ĐÃ KHÔI PHỤC LẠI BẢN FIX LỖI DẤU "&")
+  // =========================================================
+  const filteredRecommendations = useMemo(() => {
+    if (!activeCategory) return recommendations;
+    
+    // Hàm chuẩn hóa chuỗi để so sánh chính xác các danh mục chứa ký tự đặc biệt như "Camera & Photo"
+    const normalizeStr = (str) => {
+      if (!str) return "";
+      return str.toLowerCase().replace(/&/g, '').replace(/\s+/g, ' ').trim();
+    };
+
+    const normalizedActiveCat = normalizeStr(activeCategory);
+
+    return recommendations.filter(prod => {
+      if (!prod.main_cat) return false;
+      const normalizedMainCat = normalizeStr(prod.main_cat);
+      
+      return normalizedMainCat.includes(normalizedActiveCat) || normalizedActiveCat.includes(normalizedMainCat);
+    });
+  }, [recommendations, activeCategory]);
+
+  // Các xử lý sự kiện
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const searchFromUrl = searchParams.get('search') || "";
-    
     setActiveSearch(searchFromUrl);
     setPage(1);
     setProducts([]);
     fetchProducts(1, searchFromUrl, activeCategory, true);
   }, [location.search]);
-// Xử lý click lại vào danh mục
+
   const handleCategoryClick = (catValue) => {
     const newCategory = activeCategory === catValue ? "" : catValue; 
     setActiveCategory(newCategory); 
@@ -143,7 +148,7 @@ export const useHome = () => {
     setProducts([]); 
     fetchProducts(1, activeSearch, newCategory, true); 
   };
-// Xử lý load thêm sản phẩm 
+
   const loadMore = () => {
     setPage(prev => {
       const next = prev + 1;
@@ -151,7 +156,7 @@ export const useHome = () => {
       return next;
     });
   };
-// Load thêm sản phẩm gợi ý
+
   const loadMoreRecs = () => {
     setVisibleRecsCount(prev => prev + 6); 
   };
@@ -160,7 +165,8 @@ export const useHome = () => {
     categories,
     products, loading, hasMore, activeCategory, activeSearch,
     handleCategoryClick, loadMore,
-    recommendations, loadingRecs ,
+    recommendations: filteredRecommendations, 
+    loadingRecs,
     visibleRecsCount, loadMoreRecs
   };
 };
