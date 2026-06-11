@@ -34,7 +34,8 @@ const login = async (req, res) => {
                 username: user.username,
                 role: user.role,
                 amazon_id: user.amazon_id,
-                name: user.name
+                name: user.name,
+                email: user.email
             }
         });
     } catch (error) {

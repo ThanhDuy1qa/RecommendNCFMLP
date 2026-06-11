@@ -4,12 +4,13 @@ const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 // Chỉ import đúng Controller của phần Thống kê
 const analyticsController = require('../controllers/analyticsController');
 
+router.get('/admin/ai-analytics', verifyToken, analyticsController.getAiDashboardData);
 // Đăng ký đường dẫn: /stats
 router.get('/stats', analyticsController.getSystemStats);
 // Ép tính toán lại (API mới)
 router.post('/recalculate', analyticsController.recalculateStats);
 // API mới cho so sánh xu hướng
-router.get('/compare', verifyToken, analyticsController.getTrendComparison);
+router.get('/compare', analyticsController.getTrendComparison);
 // API mới cho lời khuyên nhập hàng
 router.get('/inventory-advice', verifyToken, analyticsController.getInventoryAdvice);
 // API mới cho mục tiêu marketing

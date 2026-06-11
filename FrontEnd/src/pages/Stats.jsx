@@ -3,13 +3,23 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useStatsData } from '../hooks/useStatsData'; 
 
 const COLORS_RATING = ['#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444']; 
-const COLORS_VERIFIED = ['#3b82f6', '#64748b']; 
+const COLORS_PRICE = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'];
 const COLORS_BRANDS = ['#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1'];
 
+// Cấu hình UI chung cho Tooltip của biểu đồ nền sáng
+const tooltipStyle = { 
+  backgroundColor: '#ffffff', 
+  borderColor: '#bae6fd', 
+  borderRadius: '12px', 
+  color: '#334155', 
+  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+  fontWeight: 'bold'
+};
+
 const ChartSkeleton = () => (
-  <div className="h-[300px] w-full flex flex-col items-center justify-center bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
-    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-    <p className="text-slate-400 animate-pulse text-sm">Đang nạp Big Data...</p>
+  <div className="h-[300px] w-full flex flex-col items-center justify-center bg-sky-50/50 rounded-2xl border border-dashed border-sky-200">
+    <div className="w-10 h-10 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+    <p className="text-sky-700 animate-pulse text-sm font-bold">Đang nạp Big Data...</p>
   </div>
 );
 
@@ -18,160 +28,151 @@ const Stats = () => {
     stats, loading, errorMsg,
     catLimit, setCatLimit, catSort, setCatSort,
     timeMode, setTimeMode, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth,
-    handleRecalculate, catChartData, timeChartData, availableYears
+    handleRecalculate, catChartData, timeChartData, availableYears,
+    prodLimit, setProdLimit, prodSort, setProdSort, prodChartData,
+    userLimit, setUserLimit, userChartData,
+    purchasesByDayOfWeek
   } = useStatsData();
 
   return (
-    <div className="bg-slate-900 min-h-screen p-4 sm:p-8 text-white">
-      <div className="max-w-7xl mx-auto">
+    <div className="bg-sky-200 min-h-screen p-4 sm:p-8 text-slate-800">
+      <div className="max-w-7xl mx-auto space-y-8">
         
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 border-b border-slate-700 pb-4 gap-4">
-          <h1 className="text-3xl font-bold text-blue-400">Hệ Thống Phân Tích Dữ Liệu Lớn (BI Dashboard)</h1>
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-sky-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-sky-100 text-sky-600 rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-sm">
+              📈
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-sky-800">Hệ Thống Phân Tích (BI Dashboard)</h1>
+              <p className="text-sm font-medium text-slate-500 mt-1">Phân tích dữ liệu lớn và hành vi người dùng toàn sàn</p>
+            </div>
+          </div>
+          
           <button 
             onClick={handleRecalculate} 
             disabled={stats.status === "calculating"} 
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold transition-all shadow-lg 
+            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-sm
               ${stats.status === "calculating" 
-                ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/30 border border-indigo-500'}`}
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
+                : 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-500/30 active:scale-95'}`}
           >
-            <svg className={`w-5 h-5 ${stats.status === "calculating" ? 'animate-spin text-slate-500' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {stats.status === "calculating" ? "Đang chạy 7 Module ngầm..." : "🔄 Cập nhật Data Mới"}
+            {stats.status === "calculating" ? (
+               <><div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div> Đang chạy 7 Module ngầm...</>
+            ) : "🔄 Cập nhật Data Mới"}
           </button>
         </div>
 
-        {/* MAIN CONTENT */}
         {loading ? (
-          <div className="text-center py-20 text-blue-400 animate-pulse font-bold text-xl">Đang kết nối Server...</div>
+          <div className="text-center py-20 text-sky-700 animate-pulse font-bold text-xl bg-white rounded-3xl border border-sky-200 shadow-sm">
+            <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            Đang kết nối Server...
+          </div>
         ) : errorMsg ? (
-          <div className="text-center text-red-400 bg-slate-800 p-8 rounded-xl">{errorMsg}</div>
+          <div className="text-center text-rose-600 bg-rose-50 border border-rose-200 p-8 rounded-3xl font-bold shadow-sm">{errorMsg}</div>
         ) : (
           <>
-            {/* 4 THẺ TỔNG QUAN (CARDS) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center">
-                <div className="text-4xl mb-3">📦</div>
-                <h2 className="text-slate-400 text-xs font-bold uppercase mb-2">Tổng Sản Phẩm</h2>
-                <p className="text-3xl font-bold text-blue-400">{stats.totalProducts?.toLocaleString() || 0}</p>
+            {/* HÀNG 1: 4 THẺ TỔNG QUAN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center hover:shadow-md transition-shadow hover:border-sky-300">
+                <div className="text-4xl mb-3 bg-sky-50 p-3 rounded-2xl">📦</div>
+                <h2 className="text-slate-500 text-xs font-bold uppercase mb-2">Tổng Sản Phẩm</h2>
+                <p className="text-3xl font-black text-sky-600">{stats.totalProducts?.toLocaleString() || 0}</p>
               </div>
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center">
-                <div className="text-4xl mb-3">👥</div>
-                <h2 className="text-slate-400 text-xs font-bold uppercase mb-2">Khách Hàng (Users)</h2>
-                <p className="text-3xl font-bold text-purple-400">{stats.status === "calculating" ? "..." : stats.totalUsers?.toLocaleString() || 0}</p>
+              <div className="bg-white p-6 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center hover:shadow-md transition-shadow hover:border-purple-300">
+                <div className="text-4xl mb-3 bg-purple-50 p-3 rounded-2xl">👥</div>
+                <h2 className="text-slate-500 text-xs font-bold uppercase mb-2">Khách Hàng (Users)</h2>
+                <p className="text-3xl font-black text-purple-600">{stats.status === "calculating" ? "..." : stats.totalUsers?.toLocaleString() || 0}</p>
               </div>
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center">
-                <div className="text-4xl mb-3">💬</div>
-                <h2 className="text-slate-400 text-xs font-bold uppercase mb-2">Lượt Đánh Giá</h2>
-                <p className="text-3xl font-bold text-green-400">{stats.totalReviews?.toLocaleString() || 0}</p>
+              <div className="bg-white p-6 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center hover:shadow-md transition-shadow hover:border-emerald-300">
+                <div className="text-4xl mb-3 bg-emerald-50 p-3 rounded-2xl">💬</div>
+                <h2 className="text-slate-500 text-xs font-bold uppercase mb-2">Lượt Đánh Giá</h2>
+                <p className="text-3xl font-black text-emerald-600">{stats.totalReviews?.toLocaleString() || 0}</p>
               </div>
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center relative overflow-hidden">
-                {stats.status === "calculating" && <div className="absolute inset-0 border-2 border-yellow-500 rounded-2xl animate-pulse opacity-50"></div>}
-                <div className="text-4xl mb-3">⭐</div>
-                <h2 className="text-slate-400 text-xs font-bold uppercase mb-2">Điểm Trung Bình</h2>
-                <p className="text-3xl font-bold text-yellow-400">{stats.status === "calculating" ? "..." : stats.avgRating} <span className="text-xl text-yellow-600">/ 5</span></p>
+              <div className="bg-white p-6 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center hover:shadow-md transition-shadow hover:border-amber-300">
+                <div className="text-4xl mb-3 bg-amber-50 p-3 rounded-2xl">⭐</div>
+                <h2 className="text-slate-500 text-xs font-bold uppercase mb-2">Điểm Trung Bình</h2>
+                <p className="text-3xl font-black text-amber-500">{stats.status === "calculating" ? "..." : stats.avgRating} <span className="text-xl text-slate-400 font-bold">/ 5</span></p>
               </div>
             </div>
 
-            {/* KHU VỰC BIỂU ĐỒ - HÀNG 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              
-              {/* Biểu đồ tương tác thời gian */}
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                  <h3 className="text-lg font-bold text-slate-200">📈 Tương tác theo Thời gian</h3>
+            {/* HÀNG 2: THỜI GIAN & DANH MỤC */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+              {/* Tương tác theo thời gian */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col w-full overflow-hidden">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-sky-100 pb-4">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <span className="bg-sky-100 p-1.5 rounded-lg">📈</span> Tương tác theo Thời gian
+                  </h3>
                   <div className="flex flex-wrap gap-2">
-                    <select 
-                      value={timeMode} 
-                      onChange={(e) => { setTimeMode(e.target.value); setSelectedYear('All'); setSelectedMonth('All'); }} 
-                      className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-300"
-                    >
+                    <select value={timeMode} onChange={(e) => { setTimeMode(e.target.value); setSelectedYear('All'); setSelectedMonth('All'); }} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
                       <option value="year">Năm</option>
                       <option value="month">Tháng</option>
                       <option value="day">Ngày</option>
                     </select>
-                    
                     {(timeMode === 'month' || timeMode === 'day') && (
-                      <select 
-                        value={selectedYear} 
-                        onChange={(e) => setSelectedYear(e.target.value)} 
-                        className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-300"
-                      >
+                      <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
                         <option value="All">Tất cả năm</option>
                         {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
                     )}
-                    
                     {timeMode === 'day' && selectedYear !== 'All' && (
-                      <select 
-                        value={selectedMonth} 
-                        onChange={(e) => setSelectedMonth(e.target.value)} 
-                        className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-300"
-                      >
+                      <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
                         <option value="All">Cả năm</option>
                         {Array.from({length: 12}, (_, i) => i + 1).map(m => <option key={m} value={m}>Tháng {m}</option>)}
                       </select>
                     )}
                   </div>
                 </div>
-                
                 {stats.status === "calculating" ? <ChartSkeleton /> : (
-                  <div className="h-[300px] w-full">
+                  <div className="h-[300px] w-full flex-grow">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={timeChartData}>
                         <defs>
                           <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                            <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                        <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} tickMargin={10} minTickGap={20} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(v)} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '8px', color: '#fff' }} formatter={(v) => [v.toLocaleString(), "Đánh giá"]} />
-                        <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis dataKey="time" stroke="#64748b" fontSize={10} tickMargin={10} minTickGap={20} fontWeight="bold" />
+                        <YAxis stroke="#64748b" fontSize={11} fontWeight="bold" tickFormatter={(v) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(v)} />
+                        <Tooltip cursor={{stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={tooltipStyle} formatter={(v) => [v.toLocaleString(), "Đánh giá"]} />
+                        <Area type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 )}
               </div>
 
-              {/* Biểu đồ phân bố danh mục */}
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                  <h3 className="text-lg font-bold text-slate-200">📊 Phân bố Danh mục</h3>
+              {/* Phân bố danh mục */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col w-full overflow-hidden">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-sky-100 pb-4">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <span className="bg-amber-100 p-1.5 rounded-lg">📊</span> Phân bố Danh mục
+                  </h3>
                   <div className="flex gap-2">
-                    <select 
-                      value={catSort} 
-                      onChange={(e) => setCatSort(e.target.value)} 
-                      className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-300"
-                    >
+                    <select value={catSort} onChange={(e) => setCatSort(e.target.value)} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
                       <option value="desc">Nhiều nhất</option>
                       <option value="asc">Ít nhất</option>
                     </select>
-                    <select 
-                      value={catLimit} 
-                      onChange={(e) => setCatLimit(Number(e.target.value))} 
-                      className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-300"
-                    >
+                    <select value={catLimit} onChange={(e) => setCatLimit(Number(e.target.value))} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
                       <option value={5}>Top 5</option>
                       <option value={10}>Top 10</option>
                       <option value={20}>Top 20</option>
                     </select>
                   </div>
                 </div>
-                
                 {stats.status === "calculating" ? <ChartSkeleton /> : (
-                  <div className="h-[300px] w-full overflow-y-auto custom-scrollbar pr-2">
-                    <ResponsiveContainer width="100%" height={catLimit > 10 ? catLimit * 30 : 300}>
+                  <div className="h-[300px] w-full overflow-y-auto custom-scrollbar pr-2 flex-grow">
+                    <ResponsiveContainer width="100%" height={Math.max(catChartData.length * 35, 300)}>
                       <BarChart data={catChartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                        <XAxis type="number" stroke="#94a3b8" fontSize={11} tickFormatter={(v) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(v)} />
-                        <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={10} width={100} />
-                        <Tooltip cursor={{fill: '#334155'}} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '8px', color: '#fff' }} formatter={(v) => [v.toLocaleString(), "SP"]} />
-                        <Bar dataKey="count" fill={catSort === 'desc' ? "#8b5cf6" : "#f59e0b"} radius={[0, 4, 4, 0]} barSize={20} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                        <XAxis type="number" stroke="#64748b" fontSize={11} fontWeight="bold" tickFormatter={(v) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(v)} />
+                        <YAxis dataKey="name" type="category" stroke="#475569" fontSize={11} fontWeight="bold" width={110} />
+                        <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={tooltipStyle} formatter={(v) => [v.toLocaleString(), "Sản phẩm"]} />
+                        <Bar dataKey="count" fill={catSort === 'desc' ? "#8b5cf6" : "#f59e0b"} radius={[0, 6, 6, 0]} barSize={22} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -179,57 +180,162 @@ const Stats = () => {
               </div>
             </div>
 
-            {/* KHU VỰC 3 BIỂU ĐỒ - HÀNG 2 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* HÀNG 3: BẢNG XẾP HẠNG (NẰM CHUNG 1 HÀNG 50/50) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+              
+              {/* Biểu đồ 1: Sản phẩm bán chạy nhất (HÀNG NGANG) */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col w-full overflow-hidden">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-sky-100 pb-4">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <span className="bg-rose-100 p-1.5 rounded-lg">🏆</span> Bảng xếp hạng Sản Phẩm
+                  </h3>
+                  <div className="flex gap-2">
+                    <select value={prodSort} onChange={(e) => setProdSort(e.target.value)} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
+                      <option value="desc">Nhiều nhất</option>
+                      <option value="asc">Ít nhất</option>
+                    </select>
+                    <select value={prodLimit} onChange={(e) => setProdLimit(Number(e.target.value))} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
+                      <option value={5}>Top 5</option>
+                      <option value={10}>Top 10</option>
+                      <option value={20}>Top 20</option>
+                      <option value={50}>Top 50</option>
+                    </select>
+                  </div>
+                </div>
+
+                {stats.status === "calculating" ? <ChartSkeleton /> : (
+                  <div className="w-full overflow-y-auto custom-scrollbar pr-2 flex-grow" style={{ maxHeight: '400px' }}>
+                    <ResponsiveContainer width="100%" height={Math.max(prodChartData.length * 45, 300)}>
+                      <BarChart data={prodChartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                        <XAxis type="number" stroke="#64748b" fontSize={11} fontWeight="bold" tickFormatter={(v) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(v)} />
+                        <YAxis dataKey="name" type="category" stroke="#475569" fontSize={11} fontWeight="bold" width={180} />
+                        <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={tooltipStyle} formatter={(v) => [v.toLocaleString(), "Đánh giá"]} />
+                        <Bar dataKey="count" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={22}>
+                          {prodChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={['#0ea5e9', '#06b6d4', '#10b981', '#f59e0b', '#f97316'][index % 5]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Biểu đồ 2: Khách hàng mua nhiều nhất (CỘT ĐỨNG) */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col w-full overflow-hidden">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-sky-100 pb-4">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <span className="bg-purple-100 p-1.5 rounded-lg">👑</span> Khách Hàng Năng Nổ
+                  </h3>
+                  <div className="flex gap-2">
+                    <select value={userLimit} onChange={(e) => setUserLimit(Number(e.target.value))} className="bg-white border border-sky-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-sky-50 outline-none focus:border-sky-500 cursor-pointer shadow-sm">
+                      <option value={5}>Top 5</option>
+                      <option value={10}>Top 10</option>
+                      <option value={20}>Top 20</option>
+                      <option value={50}>Top 50</option>
+                    </select>
+                  </div>
+                </div>
+
+                {stats.status === "calculating" ? <ChartSkeleton /> : (
+                  <div className="w-full overflow-x-auto custom-scrollbar pb-2 flex-grow" style={{ height: '400px' }}>
+                    <div style={{ minWidth: `${Math.max(userChartData.length * 50, 300)}px`, width: '100%', height: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={userChartData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                          <XAxis dataKey="name" stroke="#475569" fontSize={11} fontWeight="bold" tickMargin={5} angle={-45} textAnchor="end" height={60} />
+                          <YAxis stroke="#64748b" fontSize={11} fontWeight="bold" tickFormatter={(v) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(v)} />
+                          <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={tooltipStyle} formatter={(v) => [v.toLocaleString(), "Đánh giá"]} />
+                          <Bar dataKey="count" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                            {userChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={['#8b5cf6', '#ec4899', '#f43f5e', '#d946ef', '#a855f7'][index % 5]} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* HÀNG 4: 4 BIỂU ĐỒ PHÂN TÍCH NHỎ (CHIA 4 CỘT) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full pb-8">
               
               {/* Tỷ lệ Đánh giá */}
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
-                <h3 className="text-lg font-bold text-slate-200 mb-2 w-full text-center">🌟 Tỷ lệ Đánh giá</h3>
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center w-full overflow-hidden">
+                <h3 className="text-lg font-black text-slate-800 mb-4 w-full text-center border-b border-sky-100 pb-3">🌟 Tỷ lệ Đánh giá</h3>
                 {stats.status === "calculating" ? <ChartSkeleton /> : (
-                  <div className="h-[250px] w-full">
+                  <div className="h-[250px] w-full flex-grow">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={stats.ratingDistribution || []} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="count">
+                        <Pie data={stats.ratingDistribution || []} cx="50%" cy="45%" innerRadius={60} outerRadius={80} paddingAngle={3} dataKey="count">
                           {(stats.ratingDistribution || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_RATING[index % COLORS_RATING.length]} />)}
                         </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '8px', color: '#fff' }} formatter={(v) => v.toLocaleString()} />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#cbd5e1' }}/>
+                        <Tooltip contentStyle={tooltipStyle} formatter={(v) => v.toLocaleString()} />
+                        <Legend verticalAlign="bottom" height={80} wrapperStyle={{ fontSize: '12px', color: '#475569', fontWeight: 'bold' }}/>
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                 )}
               </div>
 
-              {/* Xác thực Mua hàng */}
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
-                <h3 className="text-lg font-bold text-slate-200 mb-2 w-full text-center">🛡️ Xác thực Mua hàng</h3>
+              {/* Biểu đồ Phân khúc Giá Sản phẩm */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center w-full overflow-hidden">
+                <h3 className="text-lg font-black text-slate-800 mb-4 w-full text-center border-b border-sky-100 pb-3">💰 Phân khúc Giá</h3>
                 {stats.status === "calculating" ? <ChartSkeleton /> : (
-                  <div className="h-[250px] w-full">
+                  <div className="h-[250px] w-full flex-grow">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={stats.verifiedPurchases || []} cx="50%" cy="50%" innerRadius={0} outerRadius={80} paddingAngle={2} dataKey="count">
-                          {(stats.verifiedPurchases || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_VERIFIED[index % COLORS_VERIFIED.length]} />)}
+                        <Pie 
+                          data={stats.priceDistribution || []} 
+                          cx="50%" cy="45%" 
+                          innerRadius={50} outerRadius={80} 
+                          paddingAngle={4} 
+                          dataKey="count"
+                        >
+                          {(stats.priceDistribution || []).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS_PRICE[index % COLORS_PRICE.length]} />
+                          ))}
                         </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '8px', color: '#fff' }} formatter={(v) => v.toLocaleString()} />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#cbd5e1' }}/>
+                        <Tooltip contentStyle={tooltipStyle} formatter={(v) => v.toLocaleString() + " Sản phẩm"} />
+                        <Legend verticalAlign="bottom" height={80} wrapperStyle={{ fontSize: '12px', color: '#475569', fontWeight: 'bold' }}/>
                       </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Mua sắm theo ngày trong tuần */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center w-full overflow-hidden">
+                <h3 className="text-lg font-black text-slate-800 mb-4 w-full text-center border-b border-sky-100 pb-3">📅 Tương tác trong tuần</h3>
+                {stats.status === "calculating" ? <ChartSkeleton /> : (
+                  <div className="h-[250px] w-full flex-grow">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={purchasesByDayOfWeek || []} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis dataKey="name" stroke="#475569" fontSize={10} fontWeight="bold" tickMargin={5} angle={-45} textAnchor="end" height={50} />
+                        <YAxis stroke="#64748b" fontSize={11} fontWeight="bold" tickFormatter={(v) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(v)} />
+                        <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={tooltipStyle} formatter={(v) => [v.toLocaleString(), "Tương tác"]} />
+                        <Bar dataKey="count" fill="#0ea5e9" radius={[6, 6, 0, 0]}>
+                          {(purchasesByDayOfWeek || []).map((entry, index) => <Cell key={`cell-${index}`} fill={['#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#84cc16', '#f59e0b'][index % 7]} />)}
+                        </Bar>
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 )}
               </div>
 
               {/* Top Thương hiệu */}
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                <h3 className="text-lg font-bold text-slate-200 mb-2 w-full text-center">🏷️ Top Thương hiệu</h3>
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center w-full overflow-hidden">
+                <h3 className="text-lg font-black text-slate-800 mb-4 w-full text-center border-b border-sky-100 pb-3">🏷️ Top Thương hiệu</h3>
                 {stats.status === "calculating" ? <ChartSkeleton /> : (
-                  <div className="h-[250px] w-full">
+                  <div className="h-[250px] w-full flex-grow">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={stats.topBrands || []} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <BarChart data={stats.topBrands || []} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                         <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={10} width={90} tickLine={false} axisLine={false}/>
-                        <Tooltip cursor={{fill: '#334155'}} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '8px', color: '#fff' }} formatter={(v) => [v.toLocaleString(), "SP"]} />
-                        <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={12}>
-                          {(stats.topBrands || []).map((entry, index) => ( <Cell key={`cell-${index}`} fill={COLORS_BRANDS[index % COLORS_BRANDS.length]} /> ))}
+                        <YAxis dataKey="name" type="category" stroke="#475569" fontSize={11} fontWeight="bold" width={70} tickLine={false} axisLine={false}/>
+                        <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={tooltipStyle} formatter={(v) => [v.toLocaleString(), "SP"]} />
+                        <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={16}>
+                          {(stats.topBrands || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS_BRANDS[index % COLORS_BRANDS.length]} /> )}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -238,6 +344,7 @@ const Stats = () => {
               </div>
 
             </div>
+
           </>
         )}
       </div>

@@ -2,15 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 
 export const useStatsData = () => {
   const [stats, setStats] = useState({ 
-    totalProducts: 0, 
-    totalReviews: 0, 
-    totalUsers: 0, 
-    avgRating: "0.00", 
-    reviewsByTime: [], 
-    allCategories: [], 
-    ratingDistribution: [], 
-    verifiedPurchases: [], 
-    topBrands: [], 
+    totalProducts: 0, totalReviews: 0, totalUsers: 0, avgRating: "0.00", 
+    reviewsByTime: [], allCategories: [], ratingDistribution: [], 
+    verifiedPurchases: [], topBrands: [], topReviewedProducts: [], 
+    topActiveUsers: [], priceDistribution: [],
     status: "ready" 
   });
   
@@ -22,8 +17,11 @@ export const useStatsData = () => {
   const [timeMode, setTimeMode] = useState('year'); 
   const [selectedYear, setSelectedYear] = useState('All');
   const [selectedMonth, setSelectedMonth] = useState('All');
+  
+  const [prodLimit, setProdLimit] = useState(20);
+  const [prodSort, setProdSort] = useState('desc');
+  const [userLimit, setUserLimit] = useState(20);
 
-  // Hàm lấy dữ liệu thống kê từ server
   const fetchStats = async () => {
     setErrorMsg(null);
     try {
@@ -38,12 +36,10 @@ export const useStatsData = () => {
     }
   };
 
-  // Khởi tạo lấy data lần đầu
   useEffect(() => { 
     fetchStats(); 
   }, []);
 
-  // Tự động refresh dữ liệu mỗi 5s nếu backend đang trong trạng thái "calculating"
   useEffect(() => {
     let intervalId = null;
     if (stats.status === "calculating") {
@@ -52,7 +48,6 @@ export const useStatsData = () => {
     return () => clearInterval(intervalId);
   }, [stats.status]);
 
-  // Hàm xử lý khi người dùng click vào nút "Tính toán lại"
   const handleRecalculate = async () => {
     const confirm = window.confirm("Hệ thống sẽ chạy 7 Module AI phân tích lại toàn bộ Data. Quá trình này khá tốn thời gian. Tiếp tục?");
     if (!confirm) return;
@@ -67,7 +62,6 @@ export const useStatsData = () => {
     }
   };
 
-  // Dữ liệu đã được xử lý sẵn cho biểu đồ Danh mục
   const catChartData = useMemo(() => {
     if (!stats.allCategories || stats.allCategories.length === 0) return [];
     let data = [...stats.allCategories];
@@ -75,7 +69,6 @@ export const useStatsData = () => {
     return data.slice(0, catLimit);
   }, [stats.allCategories, catLimit, catSort]);
 
-  // Xử lý dữ liệu cho biểu đồ theo thời gian
   const timeChartData = useMemo(() => {
     if (!stats.reviewsByTime || stats.reviewsByTime.length === 0) return [];
     const grouped = {};
@@ -94,16 +87,50 @@ export const useStatsData = () => {
     return Object.keys(grouped).sort().map(k => ({ time: k, count: grouped[k] }));
   }, [stats.reviewsByTime, timeMode, selectedYear, selectedMonth]);
 
-  // Tạo danh sách năm có sẵn để hiển thị trong dropdown filter
   const availableYears = useMemo(() => {
     if (!stats.reviewsByTime) return [];
     return Array.from(new Set(stats.reviewsByTime.map(item => item.year))).sort();
+  }, [stats.reviewsByTime]);
+
+  const prodChartData = useMemo(() => {
+    if (!stats.topReviewedProducts || stats.topReviewedProducts.length === 0) return [];
+    let data = [...stats.topReviewedProducts];
+    data.sort((a, b) => prodSort === 'asc' ? a.count - b.count : b.count - a.count);
+    return data.slice(0, prodLimit).map(item => ({
+      ...item,
+      name: item.name === 'Sản phẩm không xác định' ? `Unknown (${item.fullAsin})` : item.name
+    }));
+  }, [stats.topReviewedProducts, prodLimit, prodSort]);
+
+  const userChartData = useMemo(() => {
+    if (!stats.topActiveUsers || stats.topActiveUsers.length === 0) return [];
+    let data = [...stats.topActiveUsers];
+    data = data.filter(u => u.name && String(u.name).trim() !== "null");
+    return data.slice(0, userLimit);
+  }, [stats.topActiveUsers, userLimit]);
+
+  const purchasesByDayOfWeek = useMemo(() => {
+    if (!stats.reviewsByTime || stats.reviewsByTime.length === 0) return [];
+    const daysCount = { 'Thứ 2': 0, 'Thứ 3': 0, 'Thứ 4': 0, 'Thứ 5': 0, 'Thứ 6': 0, 'Thứ 7': 0, 'Chủ nhật': 0 };
+    const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+
+    stats.reviewsByTime.forEach(item => {
+      const date = new Date(item.year, item.month - 1, item.day);
+      daysCount[dayNames[date.getDay()]] += item.count;
+    });
+
+    return ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
+      .map(key => ({ name: key, count: daysCount[key] }))
+      .filter(d => d.count > 0);
   }, [stats.reviewsByTime]);
 
   return {
     stats, loading, errorMsg,
     catLimit, setCatLimit, catSort, setCatSort,
     timeMode, setTimeMode, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth,
-    handleRecalculate, catChartData, timeChartData, availableYears
+    handleRecalculate, catChartData, timeChartData, availableYears,
+    prodLimit, setProdLimit, prodSort, setProdSort, prodChartData,
+    userLimit, setUserLimit, userChartData,
+    purchasesByDayOfWeek
   };
 };

@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from './useCart'; // Đảm bảo đường dẫn này khớp với project của bạn
+import { AuthContext } from '../context/AuthContext';
 
 export const useCheckoutPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { handleCheckout, loading } = useCart();
+  const { user } = useContext(AuthContext);
 
   // State cho Form điền thông tin
   const [shippingInfo, setShippingInfo] = useState({
-    fullName: '',
-    phone: '',
-    address: ''
+    fullName: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || ''
   });
   const [paymentMethod, setPaymentMethod] = useState('COD'); // Mặc định là COD
 
@@ -37,6 +40,7 @@ export const useCheckoutPage = () => {
   };
 
   return {
+    user,
     hasValidState,
     shippingInfo,
     paymentMethod,

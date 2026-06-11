@@ -4,57 +4,68 @@ export const useAiOverview = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [topScenario, setTopScenario] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); // Biến lưu trữ lỗi
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        setError(null); // Xóa lỗi cũ mỗi lần nạp lại trang
+        setError(null);
 
-        // 1. KIỂM TRA MẠNG & TOKEN
         const token = localStorage.getItem('token');
         if (!token) {
-          throw new Error("Lỗi xác thực: Không tìm thấy Token đăng nhập!"); // Ném lỗi văng thẳng xuống catch
+          throw new Error("Lỗi xác thực: Không tìm thấy Token đăng nhập!");
         }
 
-        // 2. GỌI API
-        const response = await fetch('http://localhost:5000/api/analytics/dashboard', {
-          headers: { 
-            'Authorization': `Bearer ${token}`, 
-            'Content-Type': 'application/json'
-          }
-        });
+        // =============================================================
+        // 🌟 ĐÃ SỬA: GỌI SONG SONG 2 API ĐỂ LẤY CẢ DASHBOARD LẪN SCENARIO
+        // =============================================================
+        const [dashRes, scenarioRes] = await Promise.all([
+          fetch('http://localhost:5000/api/analytics/dashboard', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          // Gọi API mà bạn vừa phát hiện ra:
+          fetch('http://localhost:5000/api/products/admin/scenario-summary', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
         
-        const resData = await response.json();
+        const dashData = await dashRes.json();
 
-        // 3. BẮT LỖI TỪ BACKEND TRẢ VỀ (403, 404, 500)
-        // Nếu Server báo response.ok là false, ta sẽ lấy dòng message của Backend để hiển thị
-        if (!response.ok) {
-          throw new Error(resData.message || `Server báo lỗi mã ${response.status}`);
+        if (!dashRes.ok) {
+          throw new Error(dashData.message || `Server báo lỗi mã ${dashRes.status}`);
         }
 
-        // 4. LƯU DỮ LIỆU NẾU THÀNH CÔNG
-        setDashboardData(resData);
+        // Lưu dữ liệu Dashboard
+        setDashboardData(dashData);
         
-        // Trích xuất topScenario nếu có
-        if (resData?.selected) {
-           setTopScenario({ 
-             scenario: resData.selected.best_inventory_scenario, 
-             final_user_based_score: resData.model_metrics?.find(m => m.metric === 'score')?.value || 0 
-           });
+        // =============================================================
+        // 🌟 BÓC TÁCH DỮ LIỆU TOP 1 SCENARIO TỪ API MỚI 
+        // =============================================================
+        if (scenarioRes.ok) {
+            const scenarioList = await scenarioRes.json();
+            
+            if (scenarioList && scenarioList.length > 0) {
+                const bestScenario = scenarioList[0];
+                
+                setTopScenario({ 
+                    scenario: bestScenario.scenario, 
+                    
+                    // 🌟 ĐÃ SỬA: Dò tìm lần lượt các tên biến điểm số mà AI có thể đặt, nếu không có mới trả về 0
+                    final_user_based_score: 
+                        bestScenario.final_model_demand_scenario_score || 
+                        bestScenario.final_marketing_scenario_score ||
+                        bestScenario.final_user_based_inventory_score || 
+                        bestScenario.final_score || 
+                        0 
+                });
+            }
         }
 
       } catch (err) {
-        // ==========================================
-        // NƠI HỘI TỤ MỌI LỖI (CATCH)
-        // ==========================================
         console.error("Chi tiết lỗi ở Hook useAiOverview:", err);
-        
-        // Gán câu lỗi vào state 'error', giao diện Dashboard.jsx sẽ nhận được và hiện hộp màu đỏ!
         setError(err.message || "Mất kết nối đến máy chủ Backend!");
       } finally {
-        // Dù thành công hay thất bại cũng phải tắt vòng xoay loading
         setLoading(false); 
       }
     };

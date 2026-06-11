@@ -47,27 +47,44 @@ const createCategory = async (req, res) => {
 };
 
 // 3. Cập nhật danh mục (Dành cho Admin)
-// 3. Cập nhật danh mục (Dành cho Admin)
 const updateCategory = async (req, res) => {
     try {
         const { name, description, isActive } = req.body;
+        const categoryId = req.params.id;
         
-        // SỬA LỖI Ở ĐÂY: 
-        // Lấy link ảnh mới từ Cloudinary nếu Admin có chọn file mới (req.file).
-        // Nếu Admin KHÔNG chọn file mới, lấy lại link ảnh cũ từ req.body.image_url.
+        // BƯỚC 1: Lấy danh mục cũ từ Database để biết "Tên cũ" là gì trước khi sửa
+        const oldCategory = await Category.findById(categoryId);
+        if (!oldCategory) {
+            return res.status(404).json({ message: "Không tìm thấy danh mục!" });
+        }
+        const oldName = oldCategory.name;
+
+        // BƯỚC 2: Xử lý link ảnh mới từ Cloudinary (nếu có)
         const image_url = req.file ? req.file.path : req.body.image_url;
         
+        // BƯỚC 3: Cập nhật thông tin trong bảng Category
         const updatedCategory = await Category.findByIdAndUpdate(
-            req.params.id,
+            categoryId,
             { name, image_url, description, isActive },
             { new: true }
         );
 
-        if (!updatedCategory) {
-            return res.status(404).json({ message: "Không tìm thấy danh mục!" });
+        // Thay đoạn cũ bằng đoạn này:
+        if (name && oldName !== name) {
+            // Tạo Regex để tìm tên cũ, không phân biệt hoa thường, chấp nhận khoảng trắng thừa ở đầu/cuối
+            const oldNameRegex = new RegExp(`^\\s*${oldName.trim()}\\s*$`, 'i');
+            
+            const result = await Product.updateMany(
+                { main_cat: { $regex: oldNameRegex } }, 
+                { $set: { main_cat: name } }
+            );
+            console.log(`Đã đồng bộ tên danh mục cho ${result.modifiedCount} sản phẩm.`);
         }
 
-        res.json({ message: "Cập nhật thành công!", category: updatedCategory });
+        res.json({ 
+            message: "Cập nhật danh mục và đồng bộ sản phẩm thành công!", 
+            category: updatedCategory 
+        });
     } catch (error) {
         console.error("Lỗi cập nhật danh mục:", error);
         res.status(500).json({ message: "Lỗi Server khi cập nhật" });

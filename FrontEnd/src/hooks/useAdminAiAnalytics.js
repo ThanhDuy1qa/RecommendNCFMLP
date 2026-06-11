@@ -1,123 +1,124 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 export const useAdminAiAnalytics = () => {
-  const [activeTab, setActiveTab] = useState('products'); 
-  const [scenariosSummary, setScenariosSummary] = useState([]);
-  const [data, setData] = useState({ topProducts: [], userAnalytics: [] });
+  const [activeTab, setActiveTab] = useState('products'); // 'products' hoặc 'scenarios'
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); 
+  const [error, setError] = useState(null);
 
-  // State cho Bảng khách hàng (Giữ nguyên)
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState(''); 
+  // State kiểm soát bộ lọc phân trang danh sách khách hàng
+  const [searchInput, setSearchInput] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
-  const [pagination, setPagination] = useState({ totalUsers: 0, totalPages: 1 });
 
-  // =======================================================
-  // 🌟 MỚI: STATE CHO PHÂN TRANG BẢNG XẾP HẠNG SẢN PHẨM (TOP)
-  // =======================================================
+  // State kiểm soát phân trang Bảng xếp hạng sản phẩm (Top Items) bên trên
   const [topPage, setTopPage] = useState(1);
-  const topLimit = 10; // Mỗi trang hiển thị 10 sản phẩm (2 hàng)
-  
-  const topProductsRaw = data?.topProducts || [];
-  const totalTopPages = Math.ceil(topProductsRaw.length / topLimit);
-  // Cắt mảng hiển thị theo trang
-  const paginatedTopProducts = topProductsRaw.slice((topPage - 1) * topLimit, topPage * topLimit);
-
-  const handlePrevTop = () => setTopPage(p => Math.max(1, p - 1));
-  const handleNextTop = () => setTopPage(p => Math.min(totalTopPages, p + 1));
-  // =======================================================
-
-  const fetchAnalytics = async () => {
-    setLoading(true);
-    setError(null);
-    const token = localStorage.getItem('token');
-    const cacheKey = `ai_analytics_p${page}_l${limit}_s${search}`;
-
-    try {
-      const cachedData = sessionStorage.getItem(cacheKey);
-      if (cachedData) {
-        const parsedData = JSON.parse(cachedData);
-        setData(parsedData);
-        if (parsedData.pagination) setPagination(parsedData.pagination);
-        setLoading(false);
-        return; 
-      }
-
-      const res = await fetch(`http://localhost:5000/api/products/admin/ai-analytics?page=${page}&limit=${limit}&search=${search}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const resData = await res.json();
-      if (res.ok) {
-        setData(resData);
-        if (resData.pagination) setPagination(resData.pagination);
-        sessionStorage.setItem(cacheKey, JSON.stringify(resData));
-      } else {
-        setError(resData.message || "Backend từ chối truy cập!");
-      }
-    } catch (err) {
-      setError("Mất kết nối với máy chủ Backend!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchScenariosSummary = async () => {
-    setLoading(true);
-    setError(null);
-    const token = localStorage.getItem('token');
-    const cacheKey = 'ai_ablation_summary';
-
-    try {
-      const cachedData = sessionStorage.getItem(cacheKey);
-      if (cachedData) {
-        setScenariosSummary(JSON.parse(cachedData));
-        setLoading(false);
-        return; 
-      }
-
-      const res = await fetch('http://localhost:5000/api/analytics/dashboard', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const resData = await res.json();
-
-      if (res.ok && resData.ablation_summary) {
-        const testResults = resData.ablation_summary.filter(item => item.split === 'test');
-        const sortedModels = testResults.sort((a, b) => b.score - a.score);
-        setScenariosSummary(sortedModels);
-        sessionStorage.setItem(cacheKey, JSON.stringify(sortedModels));
-      } else {
-        setError("Không tìm thấy dữ liệu đánh giá mô hình!");
-      }
-    } catch (err) {
-      setError("Mất kết nối với máy chủ Backend khi lấy biểu đồ!");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    if (activeTab === 'products') {
-      fetchAnalytics();
-    } else {
-      fetchScenariosSummary();
-    }
-  }, [activeTab, page, limit, search]);
+    const fetchAnalyticsData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('token');
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(limit),
+          search: activeSearch
+        });
 
+        // 🌟 ĐÃ SỬA: Thay thế url thành nhóm /api/analytics để xóa bỏ lỗi 404
+        const res = await fetch(`http://localhost:5000/api/analytics/admin/ai-analytics?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Không thể tải dữ liệu phân tích AI');
+
+        setData(json);
+      } catch (err) {
+        console.error(err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, [page, limit, activeSearch]);
+
+  // Biến phục vụ vẽ biểu đồ thuật toán ở Tab 2
+  const scenariosSummary = useMemo(() => {
+    return data?.scenariosSummary || [];
+  }, [data]);
+
+  // Xử lý sự kiện khi ấn nút Tìm kiếm
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    setPage(1); 
-    setSearch(searchInput);
+    setPage(1);
+    setActiveSearch(searchInput);
+  };
+
+  // Logic tự động gom nhóm, đếm tần suất xuất hiện của các item để làm "Bảng xếp hạng sản phẩm đề xuất"
+  const allTopRecommendedProducts = useMemo(() => {
+    if (!data?.userAnalytics) return [];
+    
+    const freqMap = {};
+    data.userAnalytics.forEach(user => {
+      user.previewItems?.forEach(item => {
+        if (!item.asin || item.asin === 'N/A') return;
+        if (!freqMap[item.asin]) {
+          freqMap[item.asin] = {
+            asin: item.asin,
+            title: item.title,
+            image: item.image,
+            count: 0
+          };
+        }
+        freqMap[item.asin].count += 1;
+      });
+    });
+
+    return Object.values(freqMap).sort((a, b) => b.count - a.count);
+  }, [data]);
+
+  // Phân trang Client-side cho khu vực ô Grid sản phẩm HOT bên trên (Mỗi trang hiện 5 sản phẩm)
+  const totalTopPages = Math.ceil(allTopRecommendedProducts.length / 10) || 1;
+  
+  const paginatedTopProducts = useMemo(() => {
+    const start = (topPage - 1) * 10;
+    return allTopRecommendedProducts.slice(start, start + 10);
+  }, [allTopRecommendedProducts, topPage]);
+
+  const handleNextTop = () => {
+    if (topPage < totalTopPages) setTopPage(prev => prev + 1);
+  };
+
+  const handlePrevTop = () => {
+    if (topPage > 1) setTopPage(prev => prev - 1);
   };
 
   return {
-    activeTab, setActiveTab, scenariosSummary,
-    data, loading, error, 
-    searchInput, setSearchInput,
-    page, setPage, limit, setLimit, pagination, handleSearchSubmit,
-    
-    // 🌟 TRẢ VỀ CÁC HÀM PHÂN TRANG TOP SẢN PHẨM MỚI
-    topPage, totalTopPages, paginatedTopProducts, handlePrevTop, handleNextTop
+    activeTab,
+    setActiveTab,
+    scenariosSummary,
+    data,
+    loading,
+    error,
+    searchInput,
+    setSearchInput,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    pagination: data?.pagination || { totalUsers: 0, totalPages: 1 },
+    handleSearchSubmit,
+    topPage,
+    totalTopPages,
+    paginatedTopProducts,
+    handlePrevTop,
+    handleNextTop
   };
 };

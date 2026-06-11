@@ -5,6 +5,7 @@ import { useCheckoutPage } from '../hooks/useCheckoutPage';
 
 const Checkout = () => {
   const {
+    user,
     hasValidState,
     shippingInfo,
     paymentMethod,
@@ -23,110 +24,97 @@ const Checkout = () => {
   }
 
   return (
-    <div className="bg-slate-900 min-h-screen p-4 md:p-8 text-slate-200">
+    <div className="bg-sky-200 min-h-screen p-4 md:p-8 text-slate-800">
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8">
         
-        {/* CỘT TRÁI: FORM ĐIỀN THÔNG TIN (2/3 màn hình) */}
+        {/* CỘT TRÁI: FORM ĐIỀN THÔNG TIN */}
         <div className="lg:w-2/3 space-y-6">
-          <button onClick={goBackToCart} className="text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-2">
+          <button onClick={goBackToCart} className="text-sky-700 hover:text-sky-800 font-bold flex items-center gap-2">
             &larr; Quay lại Giỏ hàng
           </button>
 
-          <form id="checkout-form" onSubmit={onSubmit} className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-xl space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-6 border-b border-slate-700 pb-4">📍 Địa chỉ giao hàng</h2>
+          <form id="checkout-form" onSubmit={onSubmit} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <h2 className="text-2xl font-black text-slate-800 border-b border-slate-200 pb-3">📍 Thông tin giao hàng</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400">Họ và tên người nhận *</label>
+            {/* Ô hiển thị Email (Khóa - Chỉ đọc) */}
+              <div>
+                <label className="block text-sm font-bold text-slate-600 mb-1">Email đặt hàng</label>
                 <input 
-                  type="text" required name="fullName"
-                  value={shippingInfo.fullName} onChange={handleChange}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="VD: Nguyễn Văn A"
+                  type="email" 
+                  value={user?.email || 'Đang tải...'} 
+                  disabled 
+                  className="w-full bg-slate-100 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed outline-none" 
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-400">Số điện thoại *</label>
-                <input 
-                  type="tel" required name="phone"
-                  value={shippingInfo.phone} onChange={handleChange}
-                  className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="VD: 0987654321"
-                />
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-400">Địa chỉ nhận hàng chi tiết *</label>
-              <textarea 
-                required name="address" rows="3"
-                value={shippingInfo.address} onChange={handleChange}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố"
-              />
-            </div>
 
-            <h2 className="text-2xl font-bold text-white mb-6 border-b border-slate-700 pb-4 mt-8">💳 Phương thức thanh toán</h2>
             <div className="space-y-4">
-              <label className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === 'COD' ? 'border-blue-500 bg-blue-500/10' : 'border-slate-600 hover:bg-slate-700'}`}>
-                <input 
-                  type="radio" name="payment" value="COD" 
-                  checked={paymentMethod === 'COD'} onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-5 h-5 accent-blue-600"
-                />
-                <div>
-                  <div className="font-bold text-white">Thanh toán khi nhận hàng (COD)</div>
-                  <div className="text-sm text-slate-400">Thanh toán bằng tiền mặt khi shipper giao hàng tới.</div>
-                </div>
-              </label>
+              <div>
+                <label className="block text-sm font-bold text-slate-600 mb-1">Họ và tên người nhận *</label>
+                <input required type="text" name="fullName" value={shippingInfo.fullName} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="Nhập họ và tên..." />
+              </div>
 
-              <label className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === 'CreditCard' ? 'border-blue-500 bg-blue-500/10' : 'border-slate-600 hover:bg-slate-700'}`}>
-                <input 
-                  type="radio" name="payment" value="CreditCard" 
-                  checked={paymentMethod === 'CreditCard'} onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-5 h-5 accent-blue-600"
-                />
-                <div>
-                  <div className="font-bold text-white">Chuyển khoản / Thẻ tín dụng</div>
-                  <div className="text-sm text-slate-400">Tính năng đang trong quá trình phát triển.</div>
-                </div>
-              </label>
+              <div>
+                <label className="block text-sm font-bold text-slate-600 mb-1">Số điện thoại *</label>
+                <input required type="tel" name="phone" value={shippingInfo.phone} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="Nhập số điện thoại..." />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-600 mb-1">Địa chỉ nhận hàng chi tiết *</label>
+                <textarea required name="address" rows="3" value={shippingInfo.address} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố..." />
+              </div>
             </div>
           </form>
+
+          {/* Phương thức thanh toán */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <h2 className="text-xl font-black text-slate-800 border-b border-slate-200 pb-3">💳 Phương thức thanh toán</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${paymentMethod === 'COD' ? 'border-sky-500 bg-sky-50' : 'border-slate-200 hover:border-sky-300'}`}>
+                <input type="radio" name="paymentMethod" value="COD" checked={paymentMethod === 'COD'} onChange={(e) => setPaymentMethod(e.target.value)} className="w-5 h-5 accent-sky-600" />
+                <span className="font-bold text-slate-700">Thanh toán khi nhận hàng (COD)</span>
+              </label>
+
+              <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${paymentMethod === 'VNPAY' ? 'border-sky-500 bg-sky-50' : 'border-slate-200 hover:border-sky-300'}`}>
+                <input type="radio" name="paymentMethod" value="VNPAY" checked={paymentMethod === 'VNPAY'} onChange={(e) => setPaymentMethod(e.target.value)} className="w-5 h-5 accent-sky-600" />
+                <span className="font-bold text-slate-700">Chuyển khoản VNPay (Demo)</span>
+              </label>
+            </div>
+          </div>
         </div>
 
-        {/* CỘT PHẢI: HÓA ĐƠN TÓM TẮT (1/3 màn hình) */}
+        {/* CỘT PHẢI: TÓM TẮT ĐƠN HÀNG */}
         <div className="lg:w-1/3">
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl sticky top-24">
-            <h2 className="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-4">📄 Tóm tắt đơn hàng</h2>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm sticky top-24">
+            <h2 className="text-xl font-black text-slate-800 border-b border-slate-200 pb-3 mb-4">🧾 Tóm tắt đơn hàng</h2>
             
             <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-              {selectedItems.map(item => (
-                <div key={item.asin} className="flex gap-4 items-center">
-                  <div className="w-12 h-12 bg-white rounded p-1 shrink-0">
-                    <img src={item.image || defaultIcon} className="w-full h-full object-contain" alt="" />
+              {selectedItems.map((item) => (
+                <div key={item.asin} className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className="w-16 h-16 bg-white rounded flex shrink-0 items-center justify-center p-1 border border-slate-200">
+                    <img src={item.image || defaultIcon} alt={item.title} className="max-w-full max-h-full object-contain" onError={(e) => { e.target.src = defaultIcon; }} />
                   </div>
-                  <div className="flex-grow">
-                    <div className="text-sm font-semibold line-clamp-1">{item.title}</div>
-                    <div className="text-xs text-slate-400">SL: {item.quantity} x ${item.price}</div>
+                  <div className="flex-1">
+                    <h4 className="text-xs font-bold text-slate-800 line-clamp-2">{item.title}</h4>
+                    <p className="text-xs text-slate-500 mt-1">SL: {item.quantity}</p>
                   </div>
-                  <div className="font-bold text-green-400">${(item.price * item.quantity).toFixed(2)}</div>
+                  <div className="font-black text-rose-600">${(item.price * item.quantity).toFixed(2)}</div>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-slate-700 space-y-3">
-              <div className="flex justify-between text-slate-400">
+            <div className="mt-6 pt-6 border-t border-slate-200 space-y-3">
+              <div className="flex justify-between text-slate-600 font-medium">
                 <span>Tạm tính ({selectedItems.length} sản phẩm):</span>
                 <span>${totalAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-600 font-medium">
                 <span>Phí vận chuyển:</span>
-                <span className="text-green-400 font-bold">Miễn phí</span>
+                <span className="text-emerald-600 font-bold">Miễn phí</span>
               </div>
-              <div className="flex justify-between text-xl font-bold text-white pt-3 border-t border-slate-700">
+              <div className="flex justify-between text-xl font-black text-slate-800 pt-3 border-t border-slate-200">
                 <span>Tổng cộng:</span>
-                <span className="text-green-400">${totalAmount.toFixed(2)}</span>
+                <span className="text-rose-600">${totalAmount.toFixed(2)}</span>
               </div>
             </div>
 
@@ -134,9 +122,9 @@ const Checkout = () => {
               type="submit" 
               form="checkout-form"
               disabled={loading}
-              className="w-full mt-8 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50"
+              className="w-full mt-8 bg-sky-600 hover:bg-sky-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-sky-500/30 transition-all disabled:opacity-50"
             >
-              {loading ? "Đang xử lý..." : "Đặt Hàng Thành Công"}
+              {loading ? "Đang xử lý..." : "Đặt Hàng Ngay"}
             </button>
           </div>
         </div>

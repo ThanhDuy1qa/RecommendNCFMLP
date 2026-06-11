@@ -19,99 +19,110 @@ const Cart = () => {
   // Xử lý giao diện giỏ hàng trống
   if (cartItems.length === 0) {
     return (
-      <div className="bg-slate-900 min-h-screen p-10 text-center text-white">
+      <div className="bg-sky-200 min-h-screen p-10 text-center text-slate-800">
         <h2 className="text-2xl font-bold mb-4">🛒 Giỏ hàng của bạn đang trống!</h2>
-        <Link to="/" className="text-blue-400 hover:text-blue-300">Tiếp tục mua sắm &rarr;</Link>
+        <Link to="/" className="text-sky-700 hover:text-sky-800 font-bold">Tiếp tục mua sắm &rarr;</Link>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-900 min-h-screen p-8 text-slate-200">
-      <div className="max-w-5xl mx-auto bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
-        <h1 className="text-3xl font-bold text-blue-400 mb-8">🛒 Giỏ Hàng Của Bạn</h1>
+    <div className="bg-sky-200 min-h-screen p-4 md:p-8 text-slate-800">
+      <div className="max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
         
-        {/* Nút Chọn tất cả */}
-        <div className="flex items-center gap-3 pb-4 border-b border-slate-700 mb-4 px-2">
-          <input 
-            type="checkbox" 
-            checked={isAllSelected}
-            onChange={handleSelectAll}
-            className="w-5 h-5 cursor-pointer accent-blue-600"
-          />
-          <span className="font-semibold text-slate-300">Chọn tất cả ({cartItems.length} sản phẩm)</span>
+        {/* Tiêu đề & Chọn tất cả */}
+        <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4">
+          <h2 className="text-2xl font-black text-sky-700">🛒 Giỏ hàng ({cartItems.length})</h2>
+          
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked={isAllSelected} 
+              onChange={handleSelectAll}
+              className="w-5 h-5 accent-sky-600 cursor-pointer"
+            />
+            <span className="font-bold text-slate-600">Chọn tất cả</span>
+          </label>
         </div>
 
-        <div className="divide-y divide-slate-700">
-          {cartItems.map(item => (
-            <div key={item.asin} className="py-4 flex items-center justify-between hover:bg-slate-800/50 px-2 rounded-lg transition-colors">
+        {/* Danh sách sản phẩm */}
+        <div className="space-y-4">
+          {cartItems.map((item) => (
+            <div key={item.asin} className="flex flex-col sm:flex-row items-center gap-4 bg-sky-50/60 p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-sky-300 transition-all">
               
-              {/* Checkbox + Thông tin SP */}
-              <div className="flex items-center gap-4 w-1/2">
-                <input 
-                  type="checkbox" 
-                  checked={selectedItems.includes(item.asin)}
-                  onChange={() => handleSelectItem(item.asin)}
-                  className="w-5 h-5 cursor-pointer accent-blue-600"
+              {/* Checkbox */}
+              <input 
+                type="checkbox" 
+                checked={selectedItems.includes(item.asin)} 
+                onChange={() => handleSelectItem(item.asin)}
+                className="w-5 h-5 accent-sky-600 cursor-pointer shrink-0"
+              />
+
+              {/* Hình ảnh */}
+              <div className="w-20 h-20 bg-white rounded-lg p-1 shrink-0 border border-slate-200 flex items-center justify-center">
+                <img 
+                  src={item.image || defaultIcon} 
+                  alt={item.title} 
+                  className="max-w-full max-h-full object-contain"
+                  onError={(e) => { e.target.src = defaultIcon; }}
                 />
-                <div className="w-16 h-16 bg-white rounded flex items-center justify-center p-1 shrink-0">
-                  <img src={item.image || defaultIcon} alt="" className="max-h-full" />
-                </div>
-                <div>
-                  <div className="font-bold line-clamp-2 text-slate-200">{item.title}</div>
-                  <div className="text-sm text-slate-400 mt-1">Đơn giá: ${item.price}</div>
-                </div>
               </div>
 
-              {/* Tăng giảm số lượng + Xóa */}
-              <div className="flex items-center gap-8">
-                
-                {/* Khu vực chỉnh số lượng */}
-                <div className="flex items-center bg-slate-900 border border-slate-600 rounded-lg overflow-hidden">
-                  <button 
-                    onClick={() => updateQuantity(item.asin, item.quantity - 1)}
-                    disabled={item.quantity <= 1}
-                    className="px-3 py-1 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-bold"
-                  >
-                    -
-                  </button>
-                  <span className="px-4 py-1 border-x border-slate-600 text-sm font-semibold w-12 text-center">
-                    {item.quantity}
-                  </span>
-                  <button 
-                    onClick={() => updateQuantity(item.asin, item.quantity + 1)}
-                    className="px-3 py-1 hover:bg-slate-700 text-slate-300 font-bold"
-                  >
-                    +
-                  </button>
-                </div>
+              {/* Tên & Giá lẻ */}
+              <div className="flex-1 text-center sm:text-left">
+                <Link to={`/product/${item.asin}`} className="text-sm sm:text-base font-bold text-slate-800 hover:text-sky-600 line-clamp-2 transition-colors">
+                  {item.title}
+                </Link>
+                <div className="text-slate-500 font-medium text-sm mt-1">${item.price}</div>
+              </div>
 
-                <div className="font-bold text-green-400 w-20 text-right">
-                  ${(item.price * item.quantity).toFixed(2)}
-                </div>
-                
+              {/* Số lượng */}
+              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg overflow-hidden shrink-0 shadow-sm">
                 <button 
-                  onClick={() => removeFromCart(item.asin)} 
-                  className="text-red-400 hover:text-red-300 text-xl p-2 rounded hover:bg-slate-700 transition-colors" 
-                  title="Xóa"
+                  onClick={() => updateQuantity(item.asin, item.quantity - 1)}
+                  className="px-3 py-1 hover:bg-slate-100 text-slate-600 font-bold"
                 >
-                  🗑️
+                  -
+                </button>
+                <span className="font-bold w-10 text-center text-slate-800">
+                  {item.quantity}
+                </span>
+                <button 
+                  onClick={() => updateQuantity(item.asin, item.quantity + 1)}
+                  className="px-3 py-1 hover:bg-slate-100 text-slate-600 font-bold"
+                >
+                  +
                 </button>
               </div>
+
+              {/* Tổng tiền món */}
+              <div className="font-black text-rose-600 w-20 text-right text-lg shrink-0">
+                ${(item.price * item.quantity).toFixed(2)}
+              </div>
+              
+              {/* Nút Xóa */}
+              <button 
+                onClick={() => removeFromCart(item.asin)} 
+                className="text-slate-400 hover:text-rose-600 text-xl p-2 rounded-lg hover:bg-rose-50 transition-colors shrink-0" 
+                title="Xóa"
+              >
+                🗑️
+              </button>
             </div>
           ))}
         </div>
 
         {/* Khu vực thanh toán */}
-        <div className="flex justify-end mt-8">
+        <div className="flex justify-end mt-8 border-t border-slate-200 pt-6">
           <button 
             onClick={handleNavigateToCheckout} 
             disabled={selectedItems.length === 0}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/20 disabled:bg-slate-600 disabled:text-slate-400 disabled:shadow-none transition-all"
+            className="bg-sky-600 hover:bg-sky-500 text-white px-10 py-3.5 rounded-xl font-bold shadow-lg shadow-sky-500/30 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none transition-all"
           >
-            Mua Hàng Ngay
+            Thanh toán {selectedItems.length > 0 ? `(${selectedItems.length})` : ''} &rarr;
           </button>
         </div>
+
       </div>
     </div>
   );

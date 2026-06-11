@@ -4,25 +4,16 @@ export const formatProduct = (prod) => {
   // 1. LÀM SẠCH GIÁ
   const getFormattedPrice = (rawPrice) => {
     if (!rawPrice) return "Liên hệ";
+    if (typeof rawPrice === 'string' && rawPrice.startsWith('$')) return rawPrice;
     
-    // NẾU BACKEND ĐÃ FORMAT SẴN DẤU "$" (VD: "$17.98") -> Trả về luôn
-    if (typeof rawPrice === 'string' && rawPrice.startsWith('$')) {
-      return rawPrice;
-    }
-    
-    // Nếu là dữ liệu thô từ DB (VD: 17.98999) -> Format lại
     const numPrice = Number(rawPrice);
     return (!isNaN(numPrice) && numPrice > 0) ? `$${numPrice.toFixed(2)}` : "Liên hệ";
   };
 
   // 2. LẤY ẢNH CHUẨN
   const getBestImage = () => {
-    // NẾU BACKEND ĐÃ ĐỔI TÊN CỘT THÀNH "image" -> Lấy luôn
-    if (prod.image && typeof prod.image === 'string' && prod.image.trim() !== '') {
-      return prod.image;
-    }
+    if (prod.image && typeof prod.image === 'string' && prod.image.trim() !== '') return prod.image;
 
-    // Nếu là dữ liệu thô từ DB, tìm các cột image_url
     const highRes = prod.image_url_high || prod.imageURLHighRes;
     const normal = prod.image_url || prod.imageURL;
     
@@ -38,15 +29,14 @@ export const formatProduct = (prod) => {
   // 3. LÀM SẠCH DANH MỤC
   const getCategory = () => {
     if (!prod.category) return "Điện tử";
-    if (Array.isArray(prod.category)) {
-      return prod.category.slice(-2).join(" > ");
-    }
+    if (Array.isArray(prod.category)) return prod.category.slice(-2).join(" > ");
     return String(prod.category); 
   };
 
   // 4. TRẢ VỀ OBJECT CHUẨN HÓA
   return {
-    _id: prod._id || null, // Giữ lại _id để không bị lỗi Key trong React Map
+    ...prod, // 🌟 QUAN TRỌNG NHẤT: Bê toàn bộ dữ liệu gốc (bao gồm điểm AI) vào đây trước!
+    _id: prod._id || null, 
     asin: prod.asin || prod.item_id || "N/A", 
     title: prod.title || "Sản phẩm không có tiêu đề",
     brand: prod.brand || "NO BRAND",

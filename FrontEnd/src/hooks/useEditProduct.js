@@ -14,30 +14,58 @@ export const useEditProduct = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
 
-  // BIẾN MỚI: Lưu file mới chọn và hiển thị ảnh cũ/mới
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+
+  // Lấy role người dùng hiện tại để quyết định đường dẫn quay về
+  const userStr = localStorage.getItem('user');
+  const userRole = userStr ? JSON.parse(userStr).role : 1;
+  const returnPath = userRole === 2 ? '/admin/manage-products' : '/seller/my-products';
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // 1. Tải danh sách Categories
         const catRes = await fetch('http://localhost:5000/api/categories'); 
         const catData = await catRes.json();
-        if (Array.isArray(catData)) setDbCategories(catData.map(c => c.name));
+        let loadedCategories = [];
+        if (Array.isArray(catData)) {
+          loadedCategories = catData.map(c => c.name);
+        }
 
+        // 2. Tải thông tin Product
         const prodRes = await fetch(`http://localhost:5000/api/products/detail/${id}`); 
         const prodData = await prodRes.json();
         
         if (prodRes.ok) {
+          let currentCat = prodData.main_cat || '';
+
+          // 🌟 THUẬT TOÁN ĐỐI CHIẾU THÔNG MINH (Tự khớp "home audio theater" với "Home Audio & Theater")
+          if (currentCat) {
+            // Hàm làm sạch chuỗi: Đổi về chữ thường, bỏ dấu &, bỏ khoảng trắng thừa
+            const cleanString = (str) => str.toLowerCase().replace(/&/g, '').replace(/\s+/g, ' ').trim();
+            const cleanCurrent = cleanString(currentCat);
+
+            // Tìm xem có danh mục chuẩn nào khớp với chuỗi đã làm sạch không
+            const matchedCat = loadedCategories.find(cat => cleanString(cat) === cleanCurrent);
+
+            if (matchedCat) {
+              currentCat = matchedCat; // Lấy tên chuẩn đẹp, viết hoa đàng hoàng để gán vào form
+            } else if (!loadedCategories.includes(currentCat)) {
+              loadedCategories.unshift(currentCat); // Nếu rác quá không khớp được, đành nhét tạm vào đầu mảng
+            }
+          }
+
+          setDbCategories(loadedCategories);
+
           setFormData({
             asin: prodData.asin || prodData.item_id || '',
             title: prodData.title || '',
             brand: prodData.brand || '',
             price: prodData.price || '',
-            main_cat: prodData.main_cat || '',
+            main_cat: currentCat, // Gán chính xác danh mục đã chuẩn hóa
             description: prodData.description || ''
           });
-          // VÁ LỖI HIỂN THỊ: Đổ link ảnh cũ trong DB vào ô xem trước
           setPreviewUrl(prodData.image_url_high || prodData.image_url || '');
         } else {
           setMessage('❌ Không tìm thấy thông tin sản phẩm!');
@@ -71,7 +99,6 @@ export const useEditProduct = () => {
     setIsLoading(true);
     setMessage('');
 
-    // ĐÓNG GÓI DỮ LIỆU ĐỂ UP FILE SỬA
     const submitData = new FormData();
     submitData.append('asin', formData.asin);
     submitData.append('title', formData.title);
@@ -94,7 +121,7 @@ export const useEditProduct = () => {
       const data = await res.json();
       if (res.ok) {
         alert('✅ Cập nhật sản phẩm thành công!');
-        navigate('/seller/my-products'); 
+        navigate(returnPath); 
       } else {
         setMessage('❌ ' + data.message);
       }
@@ -105,5 +132,5 @@ export const useEditProduct = () => {
     }
   };
 
-  return { formData, dbCategories, message, isLoading, isFetching, handleChange, handleSubmit, navigate, previewUrl, handleFileChange };
+  return { formData, dbCategories, message, isLoading, isFetching, handleChange, handleSubmit, navigate, previewUrl, handleFileChange, returnPath };
 };

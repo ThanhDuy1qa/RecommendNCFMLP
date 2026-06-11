@@ -1,228 +1,377 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { useHome } from '../hooks/useHome';
 
 const Home = () => {
+  const navigate = useNavigate();
   const {
     categories = [],
     products = [],
+    hotProducts = [], 
+    hasMoreHot,
+    trendingProducts = [], 
+    hasMoreTrending,
     loading,
     hasMore,
+
     activeCategory,
     activeSearch,
+
     handleCategoryClick,
     loadMore,
+
     recommendations = [],
+    displayedRecommendations = [],
+
     loadingRecs,
+    aiAlgo,
+    setAiAlgo,
+
+    visibleRecsCount,
+    loadMoreRecs,
+
+    recommendationLimit,
+    setRecommendationLimit,
+    isRecommendationLimited
   } = useHome();
 
-  // =========================================================
-  // STATE QUẢN LÝ TAB VÀ DỮ LIỆU XU HƯỚNG TỪ FILE JSON
-  // =========================================================
-  const [activeTab, setActiveTab] = useState('foryou'); 
-  const [trendData, setTrendData] = useState({ trending: [], popular: [] });
-  const [loadingTrends, setLoadingTrends] = useState(true);
-
-  // 🌟 LOGIC MỚI: TỰ ĐỘNG CHUYỂN TAB NẾU KHÔNG CÓ GỢI Ý AI
-  useEffect(() => {
-    // Nếu đã load xong AI, mà mảng gợi ý rỗng, VÀ đang đứng ở tab foryou
-    if (!loadingRecs && recommendations.length === 0 && activeTab === 'foryou') {
-      setActiveTab('trending'); // Tự động đá văng sang tab Xu Hướng
-    }
-  }, [loadingRecs, recommendations.length, activeTab]);
-
-  // Fetch dữ liệu Xu hướng & Bán chạy từ hệ thống Python (File JSON)
-  useEffect(() => {
-    const fetchTrends = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/analytics/smart-catalog');
-        const data = await response.json();
-        if (response.ok) {
-          const formatData = (items) => items.map(item => ({
-            asin: item.asin,
-            title: item.title,
-            price: item.price ? `$${parseFloat(item.price).toFixed(2)}` : (item.price_clean ? `$${parseFloat(item.price_clean).toFixed(2)}` : "Liên hệ"),
-            image: item.image_url || item.image_url_high || null,
-            brand: item.brand || "N/A"
-          }));
-
-          setTrendData({
-            trending: formatData(data.trending || []),
-            popular: formatData(data.popular || [])
-          });
-        }
-      } catch (err) {
-        console.error("Lỗi tải xu hướng:", err);
-      } finally {
-        setLoadingTrends(false);
-      }
-    };
-    fetchTrends();
-  }, []);
-
   return (
-    <div className="bg-slate-900 p-4 sm:p-8 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* 1. BONG BÓNG DANH MỤC LỌC NHANH */}
-        <div className="flex overflow-x-auto gap-4 sm:gap-6 pb-6 mb-4 border-b border-slate-700 scrollbar-hide items-start">
-          {categories.map((cat, index) => {
-            const isActive = activeCategory === cat.value; 
-            return (
-              <div 
-                key={index} 
-                onClick={() => handleCategoryClick(cat.value)}
-                className="flex flex-col items-center cursor-pointer min-w-[70px] sm:min-w-[90px] group"
-              >
-                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white flex items-center justify-center p-2 shadow-lg transition-all duration-300 group-hover:scale-110 
-                  ${isActive ? 'ring-4 ring-blue-500 shadow-blue-500/50' : 'ring-2 ring-slate-600 group-hover:ring-blue-300'}`}
-                >
-                  <img src={cat.img} alt={cat.name} className="max-w-full max-h-full object-contain rounded-full" />
+    <div className="bg-gradient-to-br from-sky-200 via-sky-100 to-sky-50 p-4 sm:p-6 min-h-screen">
+      <div className="w-full">
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          {/* ==========================================
+              SIDEBAR BÊN TRÁI: DANH MỤC SẢN PHẨM
+              ========================================== */}
+          <aside className="w-full lg:w-64 shrink-0">
+            <div className="bg-white/95 backdrop-blur border border-sky-200 rounded-3xl shadow-sm p-5 lg:sticky lg:top-24">
+              
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                  <span className="w-9 h-9 rounded-2xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center">
+                    🗂️
+                  </span>
+                  Danh mục
+                </h2>
+
+                {activeCategory && (
+                  <button
+                    onClick={() => handleCategoryClick(activeCategory)}
+                    className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100 px-2.5 py-1 rounded-full transition-all"
+                  >
+                    Bỏ lọc
+                  </button>
+                )}
+              </div>
+
+              <div className="max-h-[520px] overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                {categories.map((cat, index) => {
+                  const isActive = activeCategory === cat.value;
+
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleCategoryClick(cat.value)}
+                      className={`w-full flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all ${
+                        isActive
+                          ? 'bg-sky-600 text-white border-sky-600 shadow-md shadow-sky-500/20'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-sky-400 hover:bg-sky-50'
+                      }`}
+                      title={cat.name}
+                    >
+                      <span
+                        className={`w-10 h-10 rounded-full flex items-center justify-center p-1.5 shrink-0 ${
+                          isActive
+                            ? 'bg-white'
+                            : 'bg-slate-50 border border-slate-100'
+                        }`}
+                      >
+                        <img
+                          src={cat.img}
+                          alt={cat.name}
+                          className="max-w-full max-h-full object-contain rounded-full"
+                        />
+                      </span>
+
+                      <span
+                        className={`text-xs font-bold line-clamp-2 ${
+                          isActive ? 'text-white' : 'text-slate-700'
+                        }`}
+                      >
+                        {cat.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+            </div>
+          </aside>
+
+          {/* ==========================================
+              NỘI DUNG BÊN PHẢI (GỢI Ý & KHO HÀNG)
+              ========================================== */}
+          <main className="flex-1 min-w-0">
+
+            {/* 1. KHU VỰC GỢI Ý AI */}
+            {(loadingRecs || recommendations.length > 0) && (
+              <section className="mb-12 animate-fadeIn">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                      <span className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center">
+                        ✨
+                      </span>
+                      Gợi ý dành cho bạn
+                    </h2>
+
+                    <p className="text-sm text-slate-500 mt-1 font-medium">
+                      Danh sách sản phẩm được đề xuất bởi các mô hình Hybrid, AE, NCF và MLP
+                    </p>
+                  </div>
                 </div>
-                <span className={`text-[10px] sm:text-xs text-center mt-2 transition-colors duration-300 line-clamp-2
-                  ${isActive ? 'text-blue-400 font-bold' : 'text-slate-400 group-hover:text-slate-200'}`}
-                >
-                  {cat.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
 
-        {/* 2. THANH TAB ĐIỀU HƯỚNG THÔNG MINH */}
-        <div className="flex overflow-x-auto gap-2 sm:gap-4 mb-8 pb-2 scrollbar-hide">
-          
-          {/* 🌟 LOGIC MỚI: CHỈ HIỂN THỊ NÚT TAB NÀY KHI ĐANG LOAD HOẶC ĐÃ CÓ DATA */}
-          {(loadingRecs || recommendations.length > 0) && (
-            <button
-              onClick={() => setActiveTab('foryou')}
-              className={`whitespace-nowrap px-6 py-2.5 rounded-full font-bold transition-all flex items-center gap-2 ${
-                activeTab === 'foryou' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-              }`}
-            >
-              <span>🤖</span> Dành Cho Bạn
-            </button>
-          )}
-          
-          <button
-            onClick={() => setActiveTab('trending')}
-            className={`whitespace-nowrap px-6 py-2.5 rounded-full font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'trending' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-            }`}
-          >
-            <span>🚀</span> Xu Hướng Mới
-          </button>
+                {/* CHỌN THUẬT TOÁN + SỐ LƯỢNG */}
+                <div className="flex flex-wrap items-center gap-3 mb-6 bg-white shadow-sm p-2 rounded-xl border border-sky-200 w-max max-w-full">
+                  <span className="text-xs text-slate-700 font-bold ml-2 mr-1 uppercase">
+                    Thuật toán:
+                  </span>
 
-          <button
-            onClick={() => setActiveTab('popular')}
-            className={`whitespace-nowrap px-6 py-2.5 rounded-full font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'popular' ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-            }`}
-          >
-            <span>🔥</span> Đang Hot
-          </button>
+                  <button
+                    onClick={() => setAiAlgo('hybrid')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      aiAlgo === 'hybrid'
+                        ? 'bg-amber-400 text-slate-900 shadow-md'
+                        : 'text-slate-700 hover:bg-amber-50 border border-transparent hover:border-amber-200'
+                    }`}
+                  >
+                    Hybrid
+                  </button>
 
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`whitespace-nowrap px-6 py-2.5 rounded-full font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'all' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-            }`}
-          >
-            <span>📦</span> Tất Cả Sản Phẩm
-          </button>
-        </div>
+                  <button
+                    onClick={() => setAiAlgo('ae')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      aiAlgo === 'ae'
+                        ? 'bg-sky-600 text-white shadow-md'
+                        : 'text-slate-700 hover:bg-sky-50 border border-transparent hover:border-sky-300'
+                    }`}
+                  >
+                    AE
+                  </button>
 
-        {/* 3. KHU VỰC HIỂN THỊ LƯỚI SẢN PHẨM TÙY THEO TAB */}
-        
-        {/* --- TAB: DÀNH CHO BẠN (AI REC) --- */}
-        {activeTab === 'foryou' && (
-          <div className="animate-fade-in">
-            {loadingRecs ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-indigo-400 mt-4 font-bold animate-pulse">AI đang phân tích sở thích của bạn...</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 items-start">
-                {recommendations.map((prod, index) => (
-                  <ProductCard key={`ai-rec-${prod.asin}-${index}`} product={prod} />
-                ))}
-              </div>
+                  <button
+                    onClick={() => setAiAlgo('ncf')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      aiAlgo === 'ncf'
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'text-slate-700 hover:bg-emerald-50 border border-transparent hover:border-emerald-200'
+                    }`}
+                  >
+                    NCF
+                  </button>
+
+                  <button
+                    onClick={() => setAiAlgo('mlp')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      aiAlgo === 'mlp'
+                        ? 'bg-purple-500 text-white shadow-md'
+                        : 'text-slate-700 hover:bg-purple-50 border border-transparent hover:border-purple-200'
+                    }`}
+                  >
+                    MLP
+                  </button>
+
+                  <div className="h-6 w-px bg-slate-200 mx-1"></div>
+
+                  <span className="text-xs text-slate-700 font-bold uppercase">
+                    Số lượng:
+                  </span>
+
+                  <select
+                    value={recommendationLimit}
+                    onChange={(e) => setRecommendationLimit(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold border border-sky-200 bg-white text-slate-700 hover:bg-sky-50 focus:outline-none focus:border-sky-500 transition-all cursor-pointer"
+                  >
+                    <option value="">Mặc định</option>
+                    <option value="10">10 sản phẩm</option>
+                    <option value="20">20 sản phẩm</option>
+                    <option value="50">50 sản phẩm</option>
+                    <option value="100">100 sản phẩm</option>
+                  </select>
+                </div>
+
+                {loadingRecs ? (
+                  <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-sky-200 shadow-sm">
+                    <div className="w-12 h-12 border-4 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sky-700 mt-4 font-bold animate-pulse">
+                      AI đang phân tích sở thích của bạn...
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-start">
+                      {displayedRecommendations.map((prod, index) => (
+                        <ProductCard
+                          key={`ai-rec-${prod.asin}-${index}`}
+                          product={prod}
+                        />
+                      ))}
+                    </div>
+
+                    {!isRecommendationLimited && recommendations.length > visibleRecsCount && (
+                      <div className="mt-8 flex justify-center">
+                        <button
+                          onClick={loadMoreRecs}
+                          className="bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 hover:border-sky-400 px-8 py-2.5 rounded-full font-bold transition-all shadow-sm"
+                        >
+                          Xem thêm gợi ý
+                        </button>
+                      </div>
+                    )}
+
+                    {!isRecommendationLimited && recommendations.length > 0 && recommendations.length <= visibleRecsCount && (
+                      <div className="mt-8 text-center text-slate-600 font-medium">
+                        Bạn đã xem hết danh sách gợi ý!
+                      </div>
+                    )}
+
+                    {isRecommendationLimited && (
+                      <div className="mt-8 text-center text-slate-600 font-medium">
+                        Đang hiển thị {displayedRecommendations.length} / {recommendations.length} sản phẩm gợi ý.
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
             )}
-          </div>
-        )}
 
-        {/* --- TAB: XU HƯỚNG MỚI --- */}
-        {activeTab === 'trending' && (
-          <div className="animate-fade-in">
-            {loadingTrends ? (
-              <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div></div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 items-start">
-                {trendData.trending.map((prod, index) => (
-                  <ProductCard key={`trend-${prod.asin}-${index}`} product={prod} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* --- TAB: ĐANG HOT --- */}
-        {activeTab === 'popular' && (
-          <div className="animate-fade-in">
-            {loadingTrends ? (
-              <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div></div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 items-start">
-                {trendData.popular.map((prod, index) => (
-                  <ProductCard key={`pop-${prod.asin}-${index}`} product={prod} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* --- TAB: TOÀN BỘ KHO HÀNG --- */}
-        {activeTab === 'all' && (
-          <div className="animate-fade-in">
-            {loading && products.length === 0 ? (
-              <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 items-start">
-                  {products.map((prod, index) => (
-                    <ProductCard key={`all-${prod.asin}-${index}`} product={prod} />
+            {/* 2. KHU VỰC SẢN PHẨM HOT */}
+            {hotProducts.length > 0 && !loading && (
+              <section className="mb-12 animate-fadeIn">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 border-t border-sky-200 pt-8">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                      <span className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center">🔥</span>
+                      Sản phẩm HOT
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1 font-medium">Sản phẩm có lượt bán và quan tâm cao nhất tuần qua</p>
+                  </div>
+                  {/* 🌟 ĐÃ SỬA: Truyền kèm Query Danh Mục */}
+                  {hasMoreHot && (
+                    <button 
+                      onClick={() => navigate(`/collection/hot${activeCategory ? `?category=${encodeURIComponent(activeCategory)}` : ''}`)}
+                      className="text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-4 py-2 rounded-xl transition-colors shadow-sm active:scale-95"
+                    >
+                      Xem Top Bán Chạy &rarr;
+                    </button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-start">
+                  {hotProducts.map((prod, index) => (
+                    <ProductCard key={`hot-${prod.asin}-${index}`} product={prod} />
                   ))}
                 </div>
-                {!loading && products.length === 0 && (activeSearch !== "" || activeCategory !== "") && (
-                  <div className="text-slate-400 text-center py-10 bg-slate-800 block-none rounded-lg border border-slate-700 mt-4">
-                    Không tìm thấy vật phẩm nào khớp với tiêu chí của bạn.
-                  </div>
-                )}
-              </>
+              </section>
             )}
 
-            <div className="mt-8 flex justify-center pb-12">
-              {loading && products.length > 0 && (
-                <div className="flex items-center gap-2 text-blue-400 font-bold animate-pulse">
-                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div> Đang tải thêm...
+            {/* 3. KHU VỰC XU HƯỚNG MỚI */}
+            {trendingProducts.length > 0 && !loading && (
+              <section className="mb-12 animate-fadeIn">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 border-t border-sky-200 pt-8">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                      <span className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">🚀</span>
+                      Xu Hướng Mới
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1 font-medium">Các mặt hàng tiềm năng đang thịnh hành</p>
+                  </div>
+                  {/* 🌟 ĐÃ SỬA: Truyền kèm Query Danh Mục */}
+                  {hasMoreTrending && (
+                    <button 
+                      onClick={() => navigate(`/collection/trending${activeCategory ? `?category=${encodeURIComponent(activeCategory)}` : ''}`)}
+                      className="text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-xl transition-colors shadow-sm active:scale-95"
+                    >
+                      Khám phá thêm &rarr;
+                    </button>
+                  )}
                 </div>
-              )}
-              {!loading && hasMore && products.length > 0 && (
-                <button 
-                  onClick={loadMore}
-                  className="bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-600 hover:border-blue-400 px-8 py-2.5 rounded-full font-semibold transition-all shadow-lg"
-                >
-                  Xem thêm sản phẩm
-                </button>
-              )}
-              {!hasMore && products.length > 0 && (
-                <div className="text-slate-500 font-medium">Bạn đã xem hết kho hàng!</div>
-              )}
-            </div>
-          </div>
-        )}
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-start">
+                  {trendingProducts.map((prod, index) => (
+                    <ProductCard key={`trend-${prod.asin}-${index}`} product={prod} />
+                  ))}
+                </div>
+              </section>
+            )}
+            {/* 4. KHU VỰC SẢN PHẨM TRONG KHO */}
+            <section>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 border-t border-sky-200 pt-8">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                    <span className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 border border-orange-100 flex items-center justify-center">
+                      📦
+                    </span>
+                    Sản phẩm trong kho
+                  </h2>
 
+                  <p className="text-sm text-slate-500 mt-1 font-medium">
+                    Toàn bộ sản phẩm hiện có trong hệ thống
+                  </p>
+                </div>
+              </div>
+
+              {loading && products.length === 0 ? (
+                <div className="flex justify-center py-20 bg-white rounded-3xl border border-sky-200 shadow-sm">
+                  <div className="w-10 h-10 border-4 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 items-start">
+                    {products.map((prod, index) => (
+                      <ProductCard
+                        key={`all-${prod.asin}-${index}`}
+                        product={prod}
+                      />
+                    ))}
+                  </div>
+
+                  {!loading && products.length === 0 && (activeSearch !== '' || activeCategory !== '') && (
+                    <div className="text-slate-600 text-center py-10 bg-white shadow-sm rounded-2xl border border-sky-200 mt-4 font-medium">
+                      Không tìm thấy sản phẩm nào khớp với tiêu chí của bạn.
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="mt-8 flex justify-center pb-12">
+                {loading && products.length > 0 && (
+                  <div className="flex items-center gap-2 text-sky-700 font-bold animate-pulse">
+                    <div className="w-5 h-5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
+                    Đang tải thêm...
+                  </div>
+                )}
+
+                {!loading && hasMore && products.length > 0 && (
+                  <button
+                    onClick={loadMore}
+                    className="bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 hover:border-sky-400 px-8 py-2.5 rounded-full font-bold transition-all shadow-sm"
+                  >
+                    Xem thêm sản phẩm
+                  </button>
+                )}
+
+                {!hasMore && products.length > 0 && (
+                  <div className="text-slate-600 font-medium">
+                    Bạn đã xem hết kho hàng!
+                  </div>
+                )}
+              </div>
+            </section>
+
+          </main>
+        </div>
       </div>
     </div>
   );

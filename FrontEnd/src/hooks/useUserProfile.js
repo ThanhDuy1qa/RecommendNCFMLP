@@ -7,6 +7,8 @@ export const useUserProfile = () => {
 
   // --- STATE FORM ĐỔI TÊN ---
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [isUpdatingName, setIsUpdatingName] = useState(false);
 
   // --- STATE FORM ĐỔI MẬT KHẨU ---
@@ -20,7 +22,9 @@ export const useUserProfile = () => {
   // Gắn tên hiện tại vào ô input khi load trang
   useEffect(() => {
     if (user?.name) {
-      setName(user.name);
+      setName(user.name || '');
+      setPhone(user.phone || '');       
+      setAddress(user.address || '');
     }
   }, [user]);
 
@@ -37,17 +41,19 @@ export const useUserProfile = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, phone, address })
       });
       const data = await res.json();
       
       if (res.ok) {
         alert("✅ " + data.message);
         
-        // 2. ĐÃ SỬA: Cập nhật thông tin mới vào Local Storage và State toàn cục
-        const updatedUser = { ...user, name: name };
-        localStorage.setItem('user', JSON.stringify(updatedUser)); // Giữ tên không bị mất khi F5
-        setUser(updatedUser); // Header và UI sẽ tự động update ngay lập tức!
+        // Cập nhật thông tin bằng object 'data.user' từ Backend trả về (bao gồm id, name, email, role)
+        // Dùng spread operator để giữ lại các trường cũ (như token, username) nếu có
+        const updatedUser = { ...user, ...data.user }; 
+        
+        localStorage.setItem('user', JSON.stringify(updatedUser)); 
+        setUser(updatedUser);
         
         // (Đã xóa dòng window.location.reload() để web chạy mượt mà)
       } else {
@@ -105,6 +111,7 @@ export const useUserProfile = () => {
     passwords, setPasswords,
     isUpdatingPass,
     handleUpdateName,
-    handleUpdatePassword
+    handleUpdatePassword,
+    phone, setPhone, address, setAddress
   };
 };

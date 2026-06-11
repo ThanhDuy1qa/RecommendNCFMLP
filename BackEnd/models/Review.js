@@ -23,6 +23,6 @@ const reviewSchema = new mongoose.Schema({
     reviewText: String,
     summary: String,
     unixReviewTime: Number
-}, { collection: 'Electronics' }); // Trỏ vào bảng gốc (ví dụ Electronics)
+}, { collection: 'Reviews' }); // Trỏ vào bảng gốc (ví dụ Electronics)
 
 module.exports = mongoose.model('Review', reviewSchema);

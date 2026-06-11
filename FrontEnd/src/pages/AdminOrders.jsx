@@ -5,17 +5,17 @@ import { useAdminOrders } from '../hooks/useAdminOrders';
 const AdminOrders = () => {
   const { orders, loading, handleUpdateStatus } = useAdminOrders();
 
-  if (loading) return <div className="text-white text-center p-10 mt-20">⏳ Đang tải dữ liệu đơn hàng...</div>;
+  if (loading) return <div className="text-slate-600 text-center p-10 mt-20 font-bold">⏳ Đang tải dữ liệu đơn hàng...</div>;
 
   return (
-    <div className="bg-slate-900 min-h-screen p-4 md:p-8 text-slate-200">
+    <div className="bg-slate-50 min-h-screen p-4 md:p-8 text-slate-800">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-red-400 mb-8">📋 Toàn bộ đơn hàng hệ thống</h1>
+        <h1 className="text-3xl font-black text-teal-700 mb-8 border-b border-slate-200 pb-4">📋 Toàn bộ đơn hàng hệ thống</h1>
         
         {orders.length === 0 ? (
-          <div className="text-center bg-slate-800 p-10 rounded-xl border border-slate-700 shadow-lg">
+          <div className="text-center bg-white p-10 rounded-2xl border border-slate-200 shadow-sm">
             <span className="text-5xl block mb-4">📭</span>
-            Hệ thống chưa ghi nhận bất kỳ đơn hàng nào.
+            <p className="font-bold text-slate-500">Hệ thống chưa ghi nhận bất kỳ đơn hàng nào.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -23,7 +23,7 @@ const AdminOrders = () => {
               <OrderCard 
                 key={order._id} 
                 order={order} 
-                role="admin" // Vai trò Admin
+                role="admin" 
                 onUpdateStatus={handleUpdateStatus} 
               />
             ))}

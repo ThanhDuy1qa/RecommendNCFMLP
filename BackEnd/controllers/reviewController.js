@@ -2,19 +2,52 @@ const Review = require('../models/Review');
 const Product = require('../models/Product'); // Dùng để tra cứu tên sản phẩm
 const User = require('../models/User');
 const Order = require('../models/Order');
+const mongoose = require('mongoose');
 // 1. Lấy đánh giá của 1 sản phẩm
+// BackEnd/controllers/analyticsController.js
+
+// 1. Lấy đánh giá của 1 sản phẩm (Đã thêm Phân trang và fix JSON trả về)
 const getReviewsByAsin = async (req, res) => {
     try {
         const { asin } = req.params;
-        // Quét cả 2 trường hợp tên cột
-        const reviews = await Review.find({ asin: asin });
-        res.json(reviews);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Xây dựng điều kiện tìm kiếm linh hoạt (Quét cả asin và item_id)
+        const searchConditions = [{ asin: asin }];
+        if (!isNaN(asin)) {
+             searchConditions.push({ item_id: Number(asin) });
+             searchConditions.push({ item_id: String(asin) });
+        } else {
+             searchConditions.push({ item_id: asin });
+        }
+
+        const query = { $or: searchConditions };
+
+        // 🚀 TỐI ƯU: Sử dụng Promise.all để đếm tổng số và lấy dữ liệu CÙNG LÚC
+        const [total, reviews] = await Promise.all([
+            Review.countDocuments(query),
+            Review.find(query)
+                .sort({ unixReviewTime: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean() // 🚀 TỐI ƯU: Thêm .lean() giúp Mongoose trả về plain JSON object, xử lý nhanh hơn rất nhiều so với Mongoose Document
+        ]);
+
+        // Cấu trúc response trả về (Giữ nguyên logic cũ của bạn)
+        res.json({
+            totalReviews: total,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            reviews: reviews
+        });
+
     } catch (error) {
-        console.error("Lỗi lấy đánh giá:", error);
-        res.status(500).json({ message: "Lỗi Server" });
+        console.error("Lỗi khi lấy đánh giá:", error);
+        res.status(500).json({ message: "Lỗi hệ thống khi tải đánh giá" });
     }
 };
-
 // 2. Gợi ý tìm kiếm khi đang gõ chữ
 const getReviewerSuggestions = async (req, res) => {
     try {
@@ -55,47 +88,79 @@ const getReviewerSuggestions = async (req, res) => {
         res.status(500).json({ message: "Lỗi Server" });
     }
 };
-// 3. Lấy toàn bộ lịch sử tương tác (Đã fix lỗi load 5 phút + Lấy tất cả)
+// 3. Lấy toàn bộ lịch sử tương tác (Fix lỗi 500 CastError + Tận dụng Title nhúng + Quét đa ID)
 const getReviewsByUser = async (req, res) => {
     try {
         const rawKeyword = req.params.userId.trim();
 
-        // BƯỚC 1: Tìm Lịch sử - BỎ TÌM THEO TÊN Ở ĐÂY ĐỂ TRÁNH SẬP SERVER
-        // (Chỉ tìm bằng reviewerID và user_id vì 2 cột này chắc chắn đã có Index)
-        let reviews = await Review.find({ 
-            $or: [
-                { reviewerID: rawKeyword }, 
-                { user_id: rawKeyword }
-            ]
-        })
-        .sort({ unixReviewTime: -1 }) // Xếp mới nhất lên đầu
-        .lean(); // Xóa .limit() ở đây để lấy TOÀN BỘ dữ liệu theo yêu cầu của bạn
-        
-        if (reviews.length === 0) {
-            return res.json([]); 
+        // Bước 1: Tìm User hợp lệ
+        let searchUserCond = [{ username: rawKeyword }, { amazon_id: rawKeyword }];
+        if (mongoose.Types.ObjectId.isValid(rawKeyword)) {
+            searchUserCond.push({ _id: rawKeyword });
         }
+        const user = await User.findOne({ $or: searchUserCond });
+
+        // Bước 2: Gom mọi loại ID của user này để quét bảng Review
+        const searchConditions = [
+            { reviewerID: rawKeyword }, 
+            { user_id: rawKeyword }
+        ];
+
+        if (user) {
+            // Quét thêm mã Amazon
+            if (user.amazon_id) {
+                searchConditions.push({ reviewerID: user.amazon_id });
+                searchConditions.push({ user_id: user.amazon_id });
+            }
+            // Quét thêm mã Số AI (lưu trong username)
+            if (user.username) {
+                searchConditions.push({ user_id: user.username });
+                if (!isNaN(user.username)) {
+                    searchConditions.push({ user_id: Number(user.username) }); // Đảm bảo quét cả định dạng Number
+                }
+            }
+        }
+
+        let reviews = await Review.find({ $or: searchConditions })
+            .sort({ unixReviewTime: -1 }) 
+            .lean(); 
         
-        // BƯỚC 2: Móc nối sang bảng Products để lấy Tiêu đề (Title)
-        const itemIds = [...new Set(reviews.map(r => r.asin || r.item_id))];
-        const products = await Product.find({ asin: { $in: itemIds } }, 'asin title');
+        if (reviews.length === 0) return res.json([]); 
         
+        // Bước 3: Tìm Sản phẩm dự phòng (Quét ĐỒNG THỜI cột asin và item_id)
+        const itemIds = [...new Set(reviews.map(r => r.asin || r.item_id))].filter(id => id != null);
+        const numericItemIds = itemIds.filter(id => !isNaN(id)).map(Number); // Tách riêng các ID là số
+
+        const products = await Product.find({ 
+            $or: [
+                { asin: { $in: itemIds } },
+                { item_id: { $in: numericItemIds } }
+            ]
+        }, 'asin item_id title image_url_high image_url');
+
+        // Tạo map hỗ trợ tra cứu bằng CẢ HAI loại ID
         const productMap = {};
-        products.forEach(p => {
-            productMap[p.asin] = p.title;
+        products.forEach(p => { 
+            if (p.asin) productMap[p.asin] = { title: p.title, image: p.image_url_high || p.image_url }; 
+            if (p.item_id) productMap[p.item_id] = { title: p.title, image: p.image_url_high || p.image_url }; 
         });
 
-        // BƯỚC 3: Chuẩn hóa dữ liệu gửi về React
+        // Bước 4: Format dữ liệu chuẩn xác
         const formattedReviews = reviews.map(doc => {
+            const currentAsin = doc.asin || doc.item_id;
+            const fallbackProd = productMap[currentAsin] || {};
+
             return {
                 ...doc,
                 reviewerID: doc.reviewerID || doc.user_id,
-                asin: doc.asin || doc.item_id,
-                reviewerName: doc.reviewerName || "Khách hàng ẩn danh",
+                asin: currentAsin,
+                reviewerName: doc.reviewerName || user?.name || "Khách hàng ẩn danh",
                 overall: doc.overall || (doc.rating ? doc.rating * 5 : 5),
-                reviewTime: doc.reviewTime || "N/A",
+                reviewTime: doc.reviewTime || (doc.unixReviewTime ? new Date(doc.unixReviewTime * 1000).toLocaleDateString('vi-VN') : "N/A"),
                 summary: doc.summary || "Lịch sử tương tác",
                 reviewText: doc.reviewText || "Dữ liệu tương tác đã được hệ thống AI ghi nhận.",
-                productTitle: productMap[doc.asin || doc.item_id] || "Sản phẩm không xác định"
+                productTitle: doc.title || fallbackProd.title || "Sản phẩm không xác định",
+                productImage: doc.image_url || fallbackProd.image || null
             };
         });
 
@@ -105,51 +170,50 @@ const getReviewsByUser = async (req, res) => {
         res.status(500).json({ message: "Lỗi Server" });
     }
 };
-// Hàm lấy lịch sử đánh giá của CHÍNH NGƯỜI DÙNG dựa theo mã Token đăng nhập
+
+// 4. Hàm lấy lịch sử đánh giá của CHÍNH NGƯỜI DÙNG đang đăng nhập
 const getMyReviews = async (req, res) => {
     try {
-        // 1. Tìm thông tin User từ ID lưu trong Token mã hóa nghiệp vụ
         const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ message: "Không tìm thấy tài khoản người dùng!" });
+        if (!user) return res.status(404).json({ message: "Không tìm thấy tài khoản người dùng!" });
+
+        // 🌟 SỬA ĐIỂM CỐT LÕI: Tìm bằng user.username (Mã AI) thay vì req.user.id (Mã Mongo)
+        const searchConditions = [{ user_id: user.username }];
+        if (!isNaN(user.username)) {
+            searchConditions.push({ user_id: Number(user.username) });
         }
 
-        // 2. Tạo tập hợp điều kiện quét chéo (Cả ID nội bộ lẫn mã định danh Amazon)
-        const searchConditions = [{ user_id: req.user.id }];
         if (user.amazon_id) {
             searchConditions.push({ reviewerID: user.amazon_id });
             searchConditions.push({ user_id: user.amazon_id }); 
         }
 
-        // 3. Quét bảng dữ liệu tương tác lịch sử trong MongoDB
         let reviews = await Review.find({ $or: searchConditions })
-            .sort({ unixReviewTime: -1 }) // Sắp xếp đánh giá mới nhất lên đầu trang
+            .sort({ unixReviewTime: -1 })
             .lean();
         
-        if (reviews.length === 0) {
-            return res.json([]); 
-        }
+        if (reviews.length === 0) return res.json([]); 
         
-        // 4. Trích xuất danh sách ASIN để thực hiện kỹ thuật Hydration (Đổ đầy dữ liệu)
-        const itemIds = [...new Set(reviews.map(r => r.asin || r.item_id))];
-        const products = await Product.find({ asin: { $in: itemIds } }, 'asin title image_url_high image_url');
-        
+        // Tìm Sản phẩm dự phòng (Quét ĐỒNG THỜI cột asin và item_id)
+        const itemIds = [...new Set(reviews.map(r => r.asin || r.item_id))].filter(id => id != null);
+        const numericItemIds = itemIds.filter(id => !isNaN(id)).map(Number);
+
+        const products = await Product.find({ 
+            $or: [
+                { asin: { $in: itemIds } },
+                { item_id: { $in: numericItemIds } }
+            ]
+        }, 'asin item_id title image_url_high image_url');
+
         const productMap = {};
         products.forEach(p => {
-            productMap[p.asin] = {
-                title: p.title,
-                image: p.image_url_high || p.image_url
-            };
+            if (p.asin) productMap[p.asin] = { title: p.title, image: p.image_url_high || p.image_url };
+            if (p.item_id) productMap[p.item_id] = { title: p.title, image: p.image_url_high || p.image_url };
         });
 
-        // 5. Chuẩn hóa cấu trúc JSON thống nhất trả về ứng dụng React Client
-        // 5. Chuẩn hóa cấu trúc JSON thống nhất trả về ứng dụng React Client (TRANG USER)
         const formattedReviews = reviews.map(doc => {
             const currentAsin = doc.asin || doc.item_id;
-            const prodInfo = productMap[currentAsin]; // Bỏ || {} đi để nó có thể trả về undefined
-            
-            // ĐÃ BỔ SUNG: Nếu không tìm thấy info sản phẩm trong DB -> Bỏ qua bài review này luôn
-            if (!prodInfo) return null; 
+            const fallbackProd = productMap[currentAsin] || {};
             
             return {
                 ...doc,
@@ -160,10 +224,10 @@ const getMyReviews = async (req, res) => {
                 reviewTime: doc.reviewTime || (doc.unixReviewTime ? new Date(doc.unixReviewTime * 1000).toLocaleDateString('vi-VN') : "N/A"),
                 summary: doc.summary || "Đánh giá sản phẩm",
                 reviewText: doc.reviewText || "Dữ liệu tương tác đã được hệ thống AI ghi nhận.",
-                productTitle: prodInfo.title, // Chắc chắn có title vì đã qua vòng if
-                productImage: prodInfo.image || null
+                productTitle: doc.title || fallbackProd.title || "Sản phẩm đã ngừng kinh doanh",
+                productImage: doc.image_url || fallbackProd.image || null
             };
-        }).filter(item => item !== null); // ĐÃ BỔ SUNG: Lọc sạch các giá trị bị rỗng (null)
+        });
 
         res.json(formattedReviews);
     } catch (error) {

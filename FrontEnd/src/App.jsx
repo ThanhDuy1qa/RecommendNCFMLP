@@ -1,33 +1,48 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import ProductDetail from './pages/ProductDetail';
-import CustomerInsight from './pages/CustomerInsight'; 
-import Stats from './pages/Stats';
+
+// Context providers
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+
+// Layout components
 import Header from './components/Header';
 import Footer from './components/Footer';
-import FloatingNav from './components/FloatingNav'; 
-import AddProduct from './pages/AddProduct';
-import Login from './pages/Login';
-import AdminDashboard from './pages/AdminDashboard';
-import MyProducts from './pages/MyProducts';
-import EditProduct from './pages/EditProduct';
+
+// Route guards
 import ProtectedRoute from './components/ProtectedRoute';
-import ManageAllProducts from './pages/ManageAllProducts';
+
+// Public pages
+import Home from './pages/Home';
+import Login from './pages/Login';
+import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import OrderHistory from './pages/OrderHistory';
 import Checkout from './pages/Checkout';
-import { AuthProvider } from './context/AuthContext'; 
-import { CartProvider } from './context/CartContext';
-import SellerOrders from './pages/SellerOrders';
-import ManageCategories from './pages/ManageCategories';
 import UserProfile from './pages/UserProfile';
 import UserReviews from './pages/UserReviews';
-import AdminOrders from './pages/AdminOrders';
-import InventoryAdvisor from './pages/InventoryAdvisor';
-import AdminAiAnalytics from './pages/AdminAiAnalytics';
 import SmartCatalog from './pages/SmartCatalog';
+import TrendCollection from './pages/TrendCollection';
+
+// Seller pages
+import MyProducts from './pages/MyProducts';
+import AddProduct from './pages/AddProduct';
+import EditProduct from './pages/EditProduct';
+import SellerOrders from './pages/SellerOrders';
+import InventoryAdvisor from './pages/InventoryAdvisor';
 import SellerDashboard from './pages/SellerDashboard';
+import TargetedMarketing from './pages/TargetedMarketing';
+
+// Admin pages
+import AdminDashboard from './pages/AdminDashboard';
+import ManageAllProducts from './pages/ManageAllProducts';
+import ManageCategories from './pages/ManageCategories';
+import AdminOrders from './pages/AdminOrders';
+import AdminAiAnalytics from './pages/AdminAiAnalytics';
+import CustomerInsight from './pages/CustomerInsight';
+import ManageUsers from './pages/ManageUsers';
+import Stats from './pages/Stats';
+
 const App = () => {
   return (
     // 1. ROUTER PHẢI NẰM NGOÀI CÙNG NHẤT
@@ -35,21 +50,27 @@ const App = () => {
       {/* 2. CÁC PROVIDER NẰM BÊN TRONG ĐỂ ĐƯỢC XÀI LỆNH NAVIGATE */}
       <AuthProvider>
         <CartProvider>
-          <div className="bg-slate-900 min-h-screen flex flex-col relative">
+          {/* ĐÃ SỬA: Đổi bg-slate-900 thành bg-sky-50 để đồng bộ Light Theme */}
+          <div className="bg-sky-50 min-h-screen flex flex-col relative">
             <Header /> 
             
             <main className="flex-grow">
               <Routes>
-                {/* Các trang công khai */}
+                {/* =========================================
+                    KHU VỰC PUBLIC (AI CŨNG XEM ĐƯỢC)
+                    ========================================= */}
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/product/:asin" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/order-history" element={<OrderHistory />} />
                 <Route path="/checkout" element={<Checkout />} />
-                <Route path="/profile" element={<UserProfile />} />
                 <Route path="/discover" element={<SmartCatalog />} />
-                
+                <Route path="/collection/:type" element={<TrendCollection />} />
+
+                {/* =========================================
+                    KHU VỰC DÀNH CHO USER ĐÃ ĐĂNG NHẬP (Role 0, 1, 2)
+                    ========================================= */}
                 <Route path="/profile" element={
                   <ProtectedRoute allowedRoles={[0, 1, 2]}>
                     <UserProfile />
@@ -61,7 +82,16 @@ const App = () => {
                     <UserReviews />
                   </ProtectedRoute>
                 } />
-                {/* KHU VỰC DÀNH RIÊNG CHO SELLER (Role 1) VÀ ADMIN (Role 2) */}
+
+                {/* =========================================
+                    KHU VỰC DÀNH RIÊNG CHO SELLER (Role 1) & ADMIN (Role 2)
+                    ========================================= */}
+                <Route path="/seller/dashboard" element={
+                  <ProtectedRoute allowedRoles={[1, 2]}>
+                    <SellerDashboard />
+                  </ProtectedRoute>
+                } />
+                
                 <Route path="/seller/my-products" element={
                   <ProtectedRoute allowedRoles={[1, 2]}>
                     <MyProducts />
@@ -91,25 +121,19 @@ const App = () => {
                     <InventoryAdvisor />
                   </ProtectedRoute>
                 } />
-
-
-                <Route path="/seller/dashboard" element={
+                
+                <Route path="/seller/marketing-targets" element={
                   <ProtectedRoute allowedRoles={[1, 2]}>
-                    <SellerDashboard />
+                    <TargetedMarketing />
                   </ProtectedRoute>
                 } />
-                {/* ====================================================
+
+                {/* =========================================
                     KHU VỰC TỐI CAO CHỈ DÀNH CHO ADMIN (Role 2) 
-                    ==================================================== */}
+                    ========================================= */}
                 <Route path="/admin/dashboard" element={
                   <ProtectedRoute allowedRoles={[2]}>
                     <AdminDashboard />
-                  </ProtectedRoute>
-                } />
-
-                <Route path="/admin/customer-insight" element={
-                  <ProtectedRoute allowedRoles={[2]}>
-                    <CustomerInsight />
                   </ProtectedRoute>
                 } />
 
@@ -142,12 +166,23 @@ const App = () => {
                     <AdminAiAnalytics />
                   </ProtectedRoute>
                 } />
+
+                <Route path="/admin/customer-insight" element={
+                  <ProtectedRoute allowedRoles={[2]}>
+                    <CustomerInsight />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/admin/users" element={
+                  <ProtectedRoute allowedRoles={[2]}>
+                    <ManageUsers />
+                  </ProtectedRoute>
+                } />
   
               </Routes>
             </main>
 
             <Footer />
-            <FloatingNav />
           </div>
         </CartProvider>
       </AuthProvider>

@@ -29,10 +29,18 @@ const UserSchema = new mongoose.Schema({
         default: 0, 
         enum: [0, 1, 2] 
     },
-    name: { type: String } 
-        
-    }, 
-{ 
+    name: { type: String },
+    
+    // --- THÊM 2 TRƯỜNG MỚI DƯỚI ĐÂY ---
+    phone: { 
+        type: String, 
+        default: '' 
+    },
+    address: { 
+        type: String, 
+        default: '' 
+    }
+}, { 
     timestamps: true // Tự động tạo createdAt và updatedAt
 });
 

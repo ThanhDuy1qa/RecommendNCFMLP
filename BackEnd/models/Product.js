@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
-    asin: String,            // MỚI: Mã chữ (VD: B00004SB92)
-    item_id: Number,         // SỬA: Mã số AI (VD: 5178)
+    asin: String,           
+    item_id: Number,        
     title: String,
     price: Number,          
     brand: String,
@@ -16,6 +16,6 @@ const productSchema = new mongoose.Schema({
         ref: 'User',
         default: null
     }
-}, { collection: 'item_features' }); // File JSON khi import vào sẽ đè lên bảng này
+}, { collection: 'Products' }); 
 
 module.exports = mongoose.model('Product', productSchema);

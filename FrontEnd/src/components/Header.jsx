@@ -1,12 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import defaultIcon from '../assets/no-image.png';
 import { useHeader } from '../hooks/useHeader';
-// 1. IMPORT HOOK GIỎ HÀNG
 import { useCart } from '../hooks/useCart';
 
 const Header = () => {
-  // Lấy toàn bộ bộ não Tìm kiếm + Đăng nhập
   const {
     searchInput, setSearchInput,
     suggestions, showSuggestions, setShowSuggestions,
@@ -14,102 +12,196 @@ const Header = () => {
     loggedInUser, handleAuthAction
   } = useHeader();
 
-  // 2. LẤY DỮ LIỆU TỪ GIỎ HÀNG
   const { cartItems } = useCart();
+  
+  // 🌟 STATE: Lấy số lượng đơn hàng chờ xử lý
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && loggedInUser && (loggedInUser.role === 1 || loggedInUser.role === 2)) {
+      const fetchPendingOrders = async () => {
+        try {
+          const res = await fetch('http://localhost:5000/api/orders/pending-count', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok) setPendingCount(data.count);
+        } catch (error) { console.error(error); }
+      };
+      
+      fetchPendingOrders();
+      // Tự động cập nhật mỗi 30s như code cũ của bạn
+      const interval = setInterval(fetchPendingOrders, 30000);
+      return () => clearInterval(interval); 
+    } else {
+      setPendingCount(0); 
+    }
+  }, [loggedInUser]);
 
   return (
-    <div className="bg-slate-900 border-b border-slate-700 sticky top-0 z-50 shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div className="bg-white/95 backdrop-blur-md border-b border-sky-200 sticky top-0 z-50 shadow-sm flex flex-col">
+      
+      {/* ==========================================
+          TẦNG 1: KHU VỰC CỬA HÀNG (DÀNH CHO MỌI NGƯỜI) 
+          ========================================== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4 w-full relative z-50">
         
-        {/* LOGO */}
-        <Link to="/" className="text-2xl font-bold text-white whitespace-nowrap hover:text-blue-400 transition-colors">
-          Kho Điện Tử
+        <Link to="/" className="text-2xl font-black text-sky-700 flex items-center gap-2 hover:scale-105 transition-transform shrink-0">
+          <span className="text-2xl">🛍️</span> Kho Điện Tử
         </Link>
         
-        {/* THANH TÌM KIẾM */}
         <div ref={wrapperRef} className="relative w-full md:w-1/2">
           <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <input
               type="text"
-              placeholder="Tìm theo tên sách, sản phẩm, mã ASIN..."
-              className="w-full bg-slate-800 text-white text-sm border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all"
+              placeholder="🔍 Tìm kiếm sản phẩm..."
               value={searchInput}
               onChange={(e) => {
                 setSearchInput(e.target.value);
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
+              className="w-full px-5 py-2.5 rounded-xl border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition-all shadow-sm text-slate-700 bg-sky-50/50"
             />
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+            <button 
+              type="submit" 
+              className="px-6 py-2.5 bg-sky-600 text-white font-bold rounded-xl hover:bg-sky-700 transition-all shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
             >
               Tìm kiếm
             </button>
           </form>
 
-          {/* BOX GỢI Ý TÌM KIẾM */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-[90px] mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl overflow-hidden z-50">
-              {suggestions.map((item, index) => (
-                <div 
-                  key={`${item.asin}-${index}`} 
-                  onClick={() => handleSuggestionClick(item.asin)}
-                  className="flex items-center gap-3 p-3 border-b border-slate-700 hover:bg-slate-700 cursor-pointer transition-colors"
+            <ul className="absolute z-[999] w-full bg-white border border-sky-100 rounded-xl mt-2 shadow-xl overflow-hidden">
+              {suggestions.map((product) => (
+                <li 
+                  key={product._id} 
+                  onClick={() => handleSuggestionClick(product)}
+                  className="px-4 py-3 hover:bg-sky-50 cursor-pointer transition-colors border-b border-sky-50 last:border-0 flex items-center gap-3"
                 >
-                  <div className="w-10 h-10 flex-shrink-0 bg-white rounded flex items-center justify-center p-1">
-                    <img 
-                      src={item.image || defaultIcon} 
-                      alt={item.title} 
-                      className="max-w-full max-h-full object-contain"
-                      onError={(e) => { e.target.src = defaultIcon; }}
-                    />
-                  </div>
-                  <div className="text-sm text-slate-200 line-clamp-2 leading-tight">
-                    {item.title}
-                  </div>
-                </div>
+                  <img 
+                    src={product.image_url || defaultIcon} 
+                    alt={product.title} 
+                    className="w-10 h-10 object-cover rounded-md border border-slate-200 bg-white"
+                  />
+                  <span className="text-sm font-medium text-slate-700 line-clamp-1">{product.title}</span>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
-        {/* NHÓM NÚT BÊN PHẢI (GIỎ HÀNG + ĐĂNG NHẬP) */}
-        <div className="flex items-center gap-6">
-          
-          {/* KHU VỰC ĐĂNG NHẬP / HỒ SƠ / ĐĂNG XUẤT */}
+        <div className="flex items-center gap-4 shrink-0">
+          <Link to="/cart" className="relative p-2 text-slate-600 hover:text-sky-600 transition-colors">
+            <span className="text-2xl">🛒</span>
+            {cartItems.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm border-2 border-white">
+                {cartItems.length}
+              </span>
+            )}
+          </Link>
+
           {loggedInUser ? (
             <div className="flex items-center gap-3">
-              {/* Nút vào trang Hồ Sơ Cá Nhân */}
+              {/* NÚT LỊCH SỬ ĐƠN HÀNG */}
+              <Link 
+                to="/order-history"
+                className="text-sm font-semibold text-slate-700 hover:text-sky-700 transition-colors border border-transparent hover:border-sky-200 bg-slate-50 hover:bg-sky-50 px-3 py-1.5 rounded-lg"
+                title="Lịch sử mua hàng"
+              >
+                🧾 Đơn mua
+              </Link>
+              
               <Link 
                 to="/profile"
-                className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors border border-transparent hover:border-blue-500/50 px-3 py-1.5 rounded-lg"
+                className="text-sm font-semibold text-slate-700 hover:text-sky-700 transition-colors border border-transparent hover:border-sky-200 bg-slate-50 hover:bg-sky-50 px-3 py-1.5 rounded-lg"
                 title="Quản lý hồ sơ"
               >
-                👋 Xin chào, {loggedInUser.name || loggedInUser.username}
+                👋 Chào, {loggedInUser.name || loggedInUser.username}
               </Link>
-
-              {/* Nút Đăng Xuất */}
               <button 
                 onClick={handleAuthAction}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-600 hover:text-white transition-all shadow-md"
-                title="Đăng xuất"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
               >
                 Đăng Xuất
               </button>
             </div>
           ) : (
-            /* Nút Đăng Nhập (Khi chưa login) */
             <button 
               onClick={handleAuthAction}
-              className="bg-blue-600 text-white border-blue-600 hover:bg-blue-500 text-sm font-semibold whitespace-nowrap px-4 py-2 rounded-lg border transition-all shadow-md"
+              className="bg-sky-600 text-white hover:bg-sky-700 text-sm font-bold py-2 px-5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-              👤 Đăng Nhập
+              Đăng Nhập
             </button>
           )}
-
         </div>
       </div>
+
+      {/* ==========================================
+          TẦNG 2: THANH CÔNG CỤ PHÂN QUYỀN CHUẨN XÁC 
+          ========================================== */}
+      {loggedInUser && (loggedInUser.role === 1 || loggedInUser.role === 2) && (
+        <div className="bg-slate-800 text-slate-300 w-full relative z-40 border-t border-slate-700 shadow-inner">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-2 flex items-center justify-end gap-6 text-sm font-medium overflow-x-auto">
+            
+            {/* 🌟 ĐÃ CẬP NHẬT: Chuyển từ thẻ span thành thẻ Link kèm hover đổi màu chữ */}
+            <Link 
+              to={loggedInUser.role === 2 ? "/admin/dashboard" : "/seller/dashboard"} 
+              className="text-slate-400 mr-auto flex items-center gap-2 hover:text-sky-400 transition-colors duration-200 whitespace-nowrap font-bold"
+            >
+              <span>🛡️</span> 
+              {loggedInUser.role === 2 ? 'Bảng điều khiển Admin' : 'Kênh Người Bán'}
+            </Link>
+
+            {/* 🔴 CHỈ HIỂN THỊ NẾU LÀ SELLER (ROLE 1) */}
+            {loggedInUser.role === 1 && (
+              <>
+                <Link to="/seller/my-products" className="hover:text-sky-400 transition-colors whitespace-nowrap">
+                  📦 Sản phẩm của tôi
+                </Link>
+                <Link to="/admin/add-product" className="hover:text-sky-400 transition-colors whitespace-nowrap">
+                  ➕ Thêm sản phẩm
+                </Link>
+                <Link to="/seller/orders" className="hover:text-sky-400 transition-colors flex items-center gap-1 whitespace-nowrap">
+                  📋 Đơn hàng
+                  {pendingCount > 0 && (
+                    <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                      {pendingCount}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
+
+            {/* 🔴 CHỈ HIỂN THỊ NẾU LÀ ADMIN (ROLE 2) */}
+            {loggedInUser.role === 2 && (
+              <>
+
+                <Link to="/admin/manage-products" className="hover:text-sky-400 transition-colors whitespace-nowrap">
+                  📦 Quản lý Sản phẩm
+                </Link>
+                <Link to="/admin/add-product" className="hover:text-sky-400 transition-colors whitespace-nowrap">
+                  ➕ Thêm SP mới
+                </Link>
+                <Link to="/admin/users" className="hover:text-sky-400 transition-colors whitespace-nowrap">
+                  👥 Người dùng
+                </Link>
+                <Link to="/admin/orders" className="hover:text-sky-400 transition-colors flex items-center gap-1 whitespace-nowrap">
+                  📋 Đơn hàng
+                  {pendingCount > 0 && (
+                    <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                      {pendingCount}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 };
