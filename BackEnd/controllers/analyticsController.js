@@ -868,15 +868,37 @@ const getAiDashboardData = async (req, res) => {
             .filter(m => m.split === 'test')
             .sort((a, b) => (b.score || 0) - (a.score || 0));
 
+        // 🌟 BƯỚC SỬA LỖI: TÍNH TOÁN TOP 50 SẢN PHẨM ĐƯỢC GỢI Ý TOÀN HỆ THỐNG
+        const topRecsAggregate = await Recommendation.aggregate([
+            { $group: { _id: '$item_id', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 50 } // Chỉ lấy Top 50 để tránh nặng Web
+        ]);
+        
+        // Truy xuất thông tin ảnh, tên sản phẩm để đắp vào
+        const topRecItemIds = topRecsAggregate.map(r => r._id);
+        const topRecProducts = await Product.find({ item_id: { $in: topRecItemIds } })
+            .select('item_id asin title image_url_high image_url')
+            .lean();
+
+        const globalTopProducts = topRecsAggregate.map(rec => {
+            const prod = topRecProducts.find(p => Number(p.item_id) === Number(rec._id));
+            return {
+                asin: prod?.asin || 'N/A',
+                title: prod?.title || `Sản phẩm AI phân tích (ID: ${rec._id})`,
+                image: prod?.image_url_high || prod?.image_url || null,
+                count: rec.count // Trả về số Hits khổng lồ thật sự
+            };
+        });
+
         // 5. KẾT XUẤT PHẢN HỒI HOÀN CHỈNH
         res.json({
             userAnalytics,
             scenariosSummary,
+            globalTopProducts, // 🌟 TRUYỀN THÊM BIẾN NÀY XUỐNG FRONTEND
             
-            // 🌟 BỔ SUNG 2 DÒNG NÀY ĐỂ TRUYỀN DỮ LIỆU CHUẨN CHO FRONTEND
             ablation_summary: rawAblation,
             final_report: compactData.final_report || baseData.final_report || {},
-
             pagination: {
                 page,
                 limit,

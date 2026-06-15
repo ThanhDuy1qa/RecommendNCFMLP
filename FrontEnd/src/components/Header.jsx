@@ -76,12 +76,16 @@ const Header = () => {
             <ul className="absolute z-[999] w-full bg-white border border-sky-100 rounded-xl mt-2 shadow-xl overflow-hidden">
               {suggestions.map((product) => (
                 <li 
-                  key={product._id} 
-                  onClick={() => handleSuggestionClick(product)}
+                  // 🌟 SỬA 1: Dùng asin làm key vì API gợi ý không trả về _id
+                  key={product.asin} 
+                  
+                  // 🌟 SỬA 2: Chỉ truyền product.asin dạng chuỗi (String) thay vì truyền nguyên Object
+                  onClick={() => handleSuggestionClick(product.asin)}
+                  
                   className="px-4 py-3 hover:bg-sky-50 cursor-pointer transition-colors border-b border-sky-50 last:border-0 flex items-center gap-3"
                 >
                   <img 
-                    src={product.image_url || defaultIcon} 
+                    src={product.image || defaultIcon} 
                     alt={product.title} 
                     className="w-10 h-10 object-cover rounded-md border border-slate-200 bg-white"
                   />
@@ -160,7 +164,7 @@ const Header = () => {
                 <Link to="/seller/my-products" className="hover:text-sky-400 transition-colors whitespace-nowrap">
                   📦 Sản phẩm của tôi
                 </Link>
-                <Link to="/admin/add-product" className="hover:text-sky-400 transition-colors whitespace-nowrap">
+                <Link to="/seller/add-product" className="hover:text-sky-400 transition-colors whitespace-nowrap">
                   ➕ Thêm sản phẩm
                 </Link>
                 <Link to="/seller/orders" className="hover:text-sky-400 transition-colors flex items-center gap-1 whitespace-nowrap">
@@ -181,8 +185,8 @@ const Header = () => {
                 <Link to="/admin/manage-products" className="hover:text-sky-400 transition-colors whitespace-nowrap">
                   📦 Quản lý Sản phẩm
                 </Link>
-                <Link to="/admin/add-product" className="hover:text-sky-400 transition-colors whitespace-nowrap">
-                  ➕ Thêm SP mới
+                <Link to="/admin/categories" className="hover:text-sky-400 transition-colors whitespace-nowrap">
+                  🗂️ Quản lý danh mục
                 </Link>
                 <Link to="/admin/users" className="hover:text-sky-400 transition-colors whitespace-nowrap">
                   👥 Người dùng

@@ -4,9 +4,9 @@ const multer = require('multer');
 
 // Thay bằng thông tin ở Bước 1 của bạn
 cloudinary.config({
-  cloud_name: 'dcaqccq0j',
-  api_key: '752482775252186',
-  api_secret: 'pWtSIZXNQRbc9vvGWI9QtWRWLYA'
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
 const storage = new CloudinaryStorage({

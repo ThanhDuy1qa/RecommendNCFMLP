@@ -53,16 +53,60 @@ const createOrder = async (req, res) => {
  */
 const getMyHistory = async (req, res) => {
   try {
-    const orders = await Order.find({
-      userId: req.user.id
-    }).sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20; // Khách hàng thường xem ít đơn 1 trang hơn Admin
+    const skip = (page - 1) * limit;
 
-    res.json(orders);
+    const search = req.query.search || '';
+    const status = req.query.status || '';
+    const timeFilter = req.query.timeFilter || '';
+
+    // Điều kiện mặc định: Chỉ lấy đơn của user này
+    let query = { userId: req.user.id };
+
+    // 1. Lọc theo trạng thái (Bỏ qua nếu chọn 'Tất cả')
+    if (status && status !== 'Tất cả') {
+      query.status = status;
+    }
+
+    // 2. Lọc theo thời gian bằng mốc cố định
+    if (timeFilter) {
+      const now = new Date();
+      if (timeFilter === '30days') {
+        query.createdAt = { $gte: new Date(now.setDate(now.getDate() - 30)) };
+      } else if (timeFilter === '6months') {
+        query.createdAt = { $gte: new Date(now.setMonth(now.getMonth() - 6)) };
+      } else if (timeFilter === '2026') {
+        query.createdAt = { $gte: new Date('2026-01-01'), $lte: new Date('2026-12-31T23:59:59') };
+      } else if (timeFilter === '2025') {
+        query.createdAt = { $gte: new Date('2025-01-01'), $lte: new Date('2025-12-31T23:59:59') };
+      }
+    }
+
+    // 3. Tìm kiếm theo tên sản phẩm
+    if (search) {
+      query['items.title'] = { $regex: search.trim(), $options: 'i' };
+    }
+
+    // Đếm tổng số để phân trang (nếu sau này cần làm load more)
+    const totalOrders = await Order.countDocuments(query);
+
+    const orders = await Order.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Trả về dạng object thay vì array thuần để dễ mở rộng
+    res.json({
+      orders,
+      totalOrders,
+      currentPage: page,
+      totalPages: Math.ceil(totalOrders / limit)
+    });
   } catch (error) {
     console.error('Lỗi lấy lịch sử mua hàng:', error);
-    res.status(500).json({
-      message: 'Lỗi Server'
-    });
+    res.status(500).json({ message: 'Lỗi Server' });
   }
 };
 
@@ -81,20 +125,70 @@ const getSellerOrders = async (req, res) => {
   try {
     const sellerId = req.user.id;
     
-    // 🌟 CHÌA KHÓA TỐC ĐỘ: Giới hạn chỉ lấy 50 đơn hàng mới nhất mỗi lần load
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50; 
     const skip = (page - 1) * limit;
 
-    const orders = await Order.find({
-      'items.sellerId': sellerId
-    })
+    // Nhận params tìm kiếm và lọc
+    const search = req.query.search || '';
+    const status = req.query.status || '';
+    const paymentMethod = req.query.paymentMethod || ''; 
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
+
+    // 🌟 ĐIỀU KIỆN CỐ ĐỊNH: Chỉ lấy đơn có chứa hàng của Seller này
+    let query = { 'items.sellerId': sellerId };
+
+    // 1. Lọc theo trạng thái và thanh toán
+    if (status) query.status = status;
+    if (paymentMethod) query.paymentMethod = paymentMethod;
+
+    // 2. Lọc theo thời gian (Đã fix lỗi Invalid Date)
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        if (!isNaN(start)) query.createdAt.$gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        if (!isNaN(end)) {
+          end.setHours(23, 59, 59, 999);
+          query.createdAt.$lte = end;
+        }
+      }
+    }
+
+    // 3. Tìm kiếm Text
+    if (search) {
+      const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(search.trim());
+      
+      if (isValidObjectId) {
+        query.$or = [
+          { _id: search.trim() },
+          { userId: search.trim() }
+        ];
+      } else {
+        query.$or = [
+          { 'shippingInfo.fullName': { $regex: search.trim(), $options: 'i' } },
+          { 'shippingInfo.phone': { $regex: search.trim(), $options: 'i' } },
+          { 'items.asin': { $regex: search.trim(), $options: 'i' } },
+          { 'items.title': { $regex: search.trim(), $options: 'i' } }
+        ];
+      }
+    }
+
+    // Đếm tổng số đơn thỏa mãn bộ lọc
+    const totalOrders = await Order.countDocuments(query);
+
+    const orders = await Order.find(query)
       .populate('userId', 'email')
       .sort({ createdAt: -1 })
-      .skip(skip)   // Bỏ qua các đơn cũ
-      .limit(limit) // Chỉ lấy tối đa 50 đơn
+      .skip(skip)
+      .limit(limit)
       .lean();
 
+    // Lọc bỏ sản phẩm của shop khác, tính lại tổng tiền chỉ cho shop này
     const filteredOrders = orders.map((order) => {
       const myItems = order.items.filter(
         (item) => item.sellerId && item.sellerId.toString() === sellerId.toString()
@@ -113,7 +207,14 @@ const getSellerOrders = async (req, res) => {
       };
     });
 
-    res.json(filteredOrders);
+    // Trả về Object giống hệt Admin
+    res.json({
+      orders: filteredOrders,
+      totalOrders,
+      currentPage: page,
+      totalPages: Math.ceil(totalOrders / limit)
+    });
+
   } catch (error) {
     console.error('Lỗi lấy đơn hàng của seller:', error);
     res.status(500).json({ message: 'Lỗi Server' });
@@ -188,12 +289,63 @@ const getAllOrdersForAdmin = async (req, res) => {
       return res.status(403).json({ message: 'Truy cập bị từ chối. Chỉ Admin mới có quyền này!' });
     }
 
-    // 🌟 TƯƠNG TỰ CHO ADMIN: Không thể load 340k đơn cùng lúc, chỉ load 50 đơn
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
+    
+    // Nhận thêm các tham số mới
+    const search = req.query.search || '';
+    const status = req.query.status || '';
+    const paymentMethod = req.query.paymentMethod || ''; 
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
+    
     const skip = (page - 1) * limit;
 
-    const orders = await Order.find()
+    // 🌟 KHỞI TẠO BỘ LỌC TÌM KIẾM
+    let query = {};
+
+    // 1. Lọc theo trạng thái 
+    if (status) query.status = status;
+
+    // 2. Lọc theo phương thức thanh toán (MỚI)
+    if (paymentMethod) query.paymentMethod = paymentMethod;
+
+    // 3. Lọc theo khoảng thời gian (MỚI)
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Kéo dài đến cuối ngày
+        query.createdAt.$lte = end;
+      }
+    }
+
+    // 4. Mở rộng tìm kiếm từ khóa (MỚI: Thêm ASIN và Tên sản phẩm)
+    if (search) {
+      const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(search.trim());
+      
+      if (isValidObjectId) {
+        // Mở rộng: Nếu gõ ID, có thể là tra ID đơn hoặc tra ID của User mua
+        query.$or = [
+          { _id: search.trim() },
+          { userId: search.trim() }
+        ];
+      } else {
+        query.$or = [
+          { 'shippingInfo.fullName': { $regex: search.trim(), $options: 'i' } },
+          { 'shippingInfo.phone': { $regex: search.trim(), $options: 'i' } },
+          { 'items.asin': { $regex: search.trim(), $options: 'i' } },  // Tra theo mã sản phẩm
+          { 'items.title': { $regex: search.trim(), $options: 'i' } } // Tra theo tên sản phẩm
+        ];
+      }
+    }
+
+    const totalOrders = await Order.countDocuments(query);
+
+    const orders = await Order.find(query)
       .populate('userId', 'email')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -235,7 +387,12 @@ const getAllOrdersForAdmin = async (req, res) => {
       };
     });
 
-    res.json(formattedOrders);
+    res.json({
+        orders: formattedOrders,
+        totalOrders,
+        currentPage: page,
+        totalPages: Math.ceil(totalOrders / limit)
+    });
   } catch (error) {
     console.error('Lỗi lấy tất cả đơn hàng:', error);
     res.status(500).json({ message: 'Lỗi Server' });

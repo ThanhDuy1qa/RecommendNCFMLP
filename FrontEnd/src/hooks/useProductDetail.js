@@ -6,7 +6,7 @@ export const useProductDetail = () => {
   const { asin } = useParams();
   const [product, setProduct] = useState(null);
   
-  // 🌟 ĐÃ SỬA: Thêm các state quản lý phân trang Đánh giá
+  // Các state quản lý phân trang Đánh giá
   const [reviews, setReviews] = useState([]); 
   const [totalReviews, setTotalReviews] = useState(0);
   const [page, setPage] = useState(1);
@@ -17,11 +17,11 @@ export const useProductDetail = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      setPage(1); // Đặt lại trang 1 khi đổi sản phẩm
+      setPage(1);
       try {
         const [productRes, reviewRes] = await Promise.all([
           fetch(`http://localhost:5000/api/products/${asin}`),
-          // 🌟 Gọi API kèm limit 10 bài đánh giá cho trang đầu
+
           fetch(`http://localhost:5000/api/reviews/${asin}?page=1&limit=10`)
         ]);
 
@@ -32,9 +32,8 @@ export const useProductDetail = () => {
 
         if (reviewRes.ok) {
           const reviewData = await reviewRes.json();
-          // 🌟 Đón lõng dữ liệu theo chuẩn JSON mới của Backend
           setReviews(reviewData.reviews || []);
-          setTotalReviews(reviewData.total || 0);
+          setTotalReviews(reviewData.totalReviews || 0); 
         }
       } catch (err) {
         console.error("Lỗi tải chi tiết sản phẩm:", err);
@@ -46,7 +45,7 @@ export const useProductDetail = () => {
     fetchData();
   }, [asin]);
 
-  // 🌟 MỚI: Hàm tải thêm đánh giá
+  // Hàm tải thêm đánh giá
   const loadMoreReviews = async () => {
     if (loadingMore) return;
     setLoadingMore(true);
@@ -65,9 +64,10 @@ export const useProductDetail = () => {
     }
   };
 
+  // 🌟 Logic kiểm tra xem đã tải hết đánh giá chưa
   const hasMoreReviews = reviews.length < totalReviews;
 
-  // Xử lý logic chọn ảnh hiển thị: ưu tiên imageURLHighRes > imageURL > default
+  // Xử lý logic chọn ảnh hiển thị
   const imageUrl = useMemo(() => {
     if (!product) return defaultImg;
     const highRes = product.imageURLHighRes || product.image_url_high;
@@ -108,11 +108,11 @@ export const useProductDetail = () => {
   return {
     product,
     reviews,
-    totalReviews,     // Truyền ra ngoài
+    totalReviews,     
     loading,
-    loadingMore,      // Truyền ra ngoài
-    hasMoreReviews,   // Truyền ra ngoài
-    loadMoreReviews,  // Truyền ra ngoài
+    loadingMore,      
+    hasMoreReviews,  
+    loadMoreReviews,  
     imageUrl,
     validDescription,
     formatPrice

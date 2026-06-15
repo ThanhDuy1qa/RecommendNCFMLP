@@ -77,22 +77,30 @@ export const useManageAllProducts = () => {
     fetchProducts(nextPage, search, selectedCategory);
   };
 
-  const handleDeleteProduct = async (id) => {
-    if (!window.confirm("CẢNH BÁO: Bạn đang xóa sản phẩm với quyền Admin. Hành động này không thể hoàn tác!")) return;
-
+  const handleDeleteProduct = async (idOrAsin) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/delete/${id}`, {
+      const res = await fetch(`http://localhost:5000/api/products/delete/${idOrAsin}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-
+      
       if (res.ok) {
-        alert("✅ Đã xóa sản phẩm khỏi hệ thống!");
-        setProducts(products.filter(p => p._id !== id));
+        alert('✅ Xóa sản phẩm thành công!');
+        
+        // 🌟 THÊM DÒNG NÀY: Lọc bỏ sản phẩm vừa xóa khỏi danh sách hiện tại
+        setProducts(prevProducts => 
+          prevProducts.filter(product => 
+            product.asin !== idOrAsin && product.item_id !== idOrAsin && product._id !== idOrAsin
+          )
+        );
+        
+      } else {
+        alert('❌ Có lỗi xảy ra khi xóa!');
       }
-    } catch (err) {
-      alert("❌ Lỗi khi xóa sản phẩm.");
+    } catch (error) {
+      console.error(error);
     }
   };
 

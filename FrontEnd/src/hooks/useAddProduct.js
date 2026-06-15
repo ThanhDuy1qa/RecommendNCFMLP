@@ -33,6 +33,34 @@ export const useAddProduct = () => {
     fetchExistingCategories();
   }, []);
 
+  const generateUniqueAsin = async () => {
+    let isUnique = false;
+    let newAsin = '';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    while (!isUnique) {
+      newAsin = 'B0';
+      for (let i = 0; i < 8; i++) {
+        newAsin += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      try {
+        const res = await fetch(`http://localhost:5000/api/products/${newAsin}`);
+        if (res.status === 404) {
+          isUnique = true; // Không tìm thấy trên DB nghĩa là mã chưa ai dùng
+        } 
+      } catch (err) {
+        console.error("Lỗi khi kiểm tra mã ASIN:", err);
+        isUnique = true; 
+      }
+    }
+    setFormData(prev => ({ ...prev, asin: newAsin }));
+  };
+
+  useEffect(() => {
+    generateUniqueAsin();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -89,6 +117,9 @@ export const useAddProduct = () => {
           asin: '', title: '', brand: '', price: '', 
           main_cat: dbCategories[0] || '', category: "['Electronics']", description: ''
         });
+
+        await generateUniqueAsin();
+        
         setImageFile(null);
         setPreviewUrl('');
       } else {
@@ -100,6 +131,11 @@ export const useAddProduct = () => {
       setIsLoading(false);
     }
   };
+  
 
-  return { formData, dbCategories, message, isLoading, handleChange, handleSubmit, previewUrl, handleFileChange };
+  return { 
+    formData, setFormData, dbCategories, message, isLoading, 
+    handleChange, handleSubmit, previewUrl, handleFileChange, 
+    generateUniqueAsin 
+  };
 };

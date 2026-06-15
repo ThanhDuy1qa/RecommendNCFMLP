@@ -63,25 +63,7 @@ export const useAdminAiAnalytics = () => {
 
   // Logic tự động gom nhóm, đếm tần suất xuất hiện của các item để làm "Bảng xếp hạng sản phẩm đề xuất"
   const allTopRecommendedProducts = useMemo(() => {
-    if (!data?.userAnalytics) return [];
-    
-    const freqMap = {};
-    data.userAnalytics.forEach(user => {
-      user.previewItems?.forEach(item => {
-        if (!item.asin || item.asin === 'N/A') return;
-        if (!freqMap[item.asin]) {
-          freqMap[item.asin] = {
-            asin: item.asin,
-            title: item.title,
-            image: item.image,
-            count: 0
-          };
-        }
-        freqMap[item.asin].count += 1;
-      });
-    });
-
-    return Object.values(freqMap).sort((a, b) => b.count - a.count);
+    return data?.globalTopProducts || [];
   }, [data]);
 
   // Phân trang Client-side cho khu vực ô Grid sản phẩm HOT bên trên (Mỗi trang hiện 5 sản phẩm)

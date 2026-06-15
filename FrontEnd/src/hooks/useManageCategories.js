@@ -14,6 +14,9 @@ export const useManageCategories = () => {
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
 
+  // 🌟 THÊM STATE NÀY ĐỂ KHÓA NÚT SUBMIT
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // 1. Hàm Load Danh mục từ Backend
   const fetchCategories = async () => {
     setLoading(true);
@@ -73,6 +76,12 @@ export const useManageCategories = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return alert("Vui lòng nhập tên danh mục!");
+    
+    // 🌟 CHẶN ĐỨNG NẾU ĐANG TRONG QUÁ TRÌNH SUBMIT
+    if (isSubmitting) return;
+
+    // Khóa nút lại
+    setIsSubmitting(true);
 
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId 
@@ -103,6 +112,9 @@ export const useManageCategories = () => {
       fetchCategories(); 
     } catch (error) {
       alert(error.message);
+    } finally {
+      // 🌟 MỞ KHÓA NÚT DÙ THÀNH CÔNG HAY THẤT BẠI
+      setIsSubmitting(false);
     }
   };
 
@@ -135,6 +147,7 @@ export const useManageCategories = () => {
     handleOpenEdit,
     handleFileChange,
     handleSubmit,
-    handleDeleteCategory
+    handleDeleteCategory,
+    isSubmitting // 🌟 XUẤT STATE NÀY RA ĐỂ BÊN UI DÙNG
   };
 };

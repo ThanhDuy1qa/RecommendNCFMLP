@@ -286,23 +286,47 @@ const addReview = async (req, res) => {
 };
 
 // [API MỚI] Cập nhật đánh giá đã tồn tại
+// [API MỚI] Cập nhật đánh giá đã tồn tại
 const updateReview = async (req, res) => {
     try {
         const { asin, overall, summary, reviewText } = req.body;
-        const userId = req.user.id; // Lấy từ Token người dùng đang đăng nhập
+        const userId = req.user.id; // Lấy ObjectId từ Token
+        
+        // 🌟 SỬA LỖI TẠI ĐÂY: Lấy thêm thông tin User để lấy username (số AI) và amazon_id
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
 
-        // Tìm đúng bài đánh giá của user này cho sản phẩm này và cập nhật dữ liệu mới
+        // Xây dựng điều kiện tìm kiếm tương tự như hàm getMyReviews
+        const searchConditions = [
+            { user_id: userId }, // Tìm theo ObjectId (đối với review MỚI tự viết)
+            { user_id: user.username }, // Tìm theo số AI (đối với review CŨ từ dataset)
+        ];
+        
+        if (!isNaN(user.username)) {
+            searchConditions.push({ user_id: Number(user.username) });
+        }
+        
+        if (user.amazon_id) {
+            searchConditions.push({ reviewerID: user.amazon_id });
+            searchConditions.push({ user_id: user.amazon_id });
+        }
+
+        // Tìm bài đánh giá thỏa mãn 1 trong các ID của user này VÀ đúng mã ASIN
+        const query = { 
+            $or: searchConditions,
+            asin: asin 
+        };
+
         const updatedReview = await Review.findOneAndUpdate(
-            { user_id: userId, asin: asin },
+            query, // Truyền cụm query mới vào đây
             {
                 overall: Number(overall),
                 summary: summary,
                 reviewText: reviewText,
-                // Cập nhật lại thời gian sửa đổi theo format chuẩn Amazon
                 reviewTime: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, ' '),
                 unixReviewTime: Math.floor(Date.now() / 1000)
             },
-            { new: true } // Trả về dữ liệu mới sau khi sửa
+            { new: true } 
         );
 
         if (!updatedReview) {
@@ -315,11 +339,53 @@ const updateReview = async (req, res) => {
         res.status(500).json({ message: "Lỗi hệ thống khi sửa đánh giá" });
     }
 };
+
+const deleteReview = async (req, res) => {
+    try {
+        const { asin } = req.params;
+        const userId = req.user.id;
+
+        // 🌟 SỬA LỖI TẠI ĐÂY: Áp dụng cùng logic quét đa ID như ở trên
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
+
+        const searchConditions = [
+            { user_id: userId },
+            { user_id: user.username },
+        ];
+        
+        if (!isNaN(user.username)) {
+            searchConditions.push({ user_id: Number(user.username) });
+        }
+        
+        if (user.amazon_id) {
+            searchConditions.push({ reviewerID: user.amazon_id });
+            searchConditions.push({ user_id: user.amazon_id });
+        }
+
+        const query = { 
+            $or: searchConditions,
+            asin: asin 
+        };
+
+        const deletedReview = await Review.findOneAndDelete(query);
+
+        if (!deletedReview) {
+            return res.status(404).json({ message: "Không tìm thấy đánh giá để xóa!" });
+        }
+
+        res.json({ message: "Đã xóa đánh giá thành công!" });
+    } catch (error) {
+        console.error("Lỗi khi xóa đánh giá:", error);
+        res.status(500).json({ message: "Lỗi hệ thống khi xóa đánh giá" });
+    }
+};
 module.exports = {
     getReviewsByAsin,
     getReviewerSuggestions,
     getReviewsByUser,
     getMyReviews,
     addReview,
-    updateReview
+    updateReview,
+    deleteReview
 };

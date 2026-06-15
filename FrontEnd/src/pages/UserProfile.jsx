@@ -16,8 +16,44 @@ const UserProfile = () => {
     address, setAddress
   } = useUserProfile();
 
-  // 🌟 STATE MỚI: Quản lý ẩn/hiện form đổi mật khẩu
+  // STATE Quản lý ẩn/hiện form đổi mật khẩu và đổi email
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [isRequestingEmail, setIsRequestingEmail] = useState(false); // Thêm state loading khi gửi mail
+
+  const handleRequestEmailChange = async () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      alert("Vui lòng nhập một địa chỉ email hợp lệ!");
+      return;
+    }
+
+    try {
+      setIsRequestingEmail(true);
+      const response = await fetch('http://localhost:5000/api/request-email-change', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ newEmail })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        alert(data.message || "Đã gửi link xác nhận vào email mới. Vui lòng kiểm tra hộp thư!");
+        setShowEmailModal(false);
+        setNewEmail(''); // Reset form
+      } else {
+        alert(data.message || "Có lỗi xảy ra khi yêu cầu đổi email.");
+      }
+    } catch (error) {
+      alert("Lỗi kết nối đến máy chủ.");
+    } finally {
+      setIsRequestingEmail(false);
+    }
+  };
 
   return (
     <div className="bg-sky-200 min-h-screen p-4 md:p-8 text-slate-800 flex justify-center items-start">
@@ -55,7 +91,7 @@ const UserProfile = () => {
           </div>
         </div>
 
-        {/* KHU VỰC CHỨA 2 KHỐI FORM (CÓ CHUYỂN ĐỔI LINH HOẠT) */}
+        {/* KHU VỰC CHỨA 2 KHỐI FORM */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
           {/* KHỐI 1: THÔNG TIN CÁ NHÂN */}
@@ -98,15 +134,24 @@ const UserProfile = () => {
                 />
               </div>
 
+              {/* 🌟 ĐÃ SỬA KHU VỰC EMAIL 🌟 */}
               <div>
-                <label className="block text-sm font-bold text-slate-600 mb-1.5">
-                  Email đăng nhập <span className="text-xs font-normal text-rose-500">(Không thể đổi)</span>
-                </label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-sm font-bold text-slate-600">Email đăng nhập</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowEmailModal(true)}
+                    className="text-xs font-bold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 px-3 py-1 rounded-full border border-sky-200 transition-colors"
+                  >
+                    ✏️ Thay đổi
+                  </button>
+                </div>
                 <input 
                   type="email" 
                   value={user?.email || ''} 
                   disabled
                   className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3.5 text-slate-500 cursor-not-allowed outline-none" 
+                  placeholder="Đang tải email..."
                 />
               </div>
 
@@ -130,10 +175,9 @@ const UserProfile = () => {
             </form>
           </div>
 
-          {/* KHỐI 2: ĐỔI MẬT KHẨU (ẨN/HIỆN THÔNG MINH) */}
+          {/* KHỐI 2: ĐỔI MẬT KHẨU */}
           <div className="transition-all duration-300">
             {!showPasswordForm ? (
-              /* --- KHUNG THAY THẾ KHI FORM ĐANG ĐÓNG --- */
               <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm flex flex-col items-center justify-center text-center space-y-5 h-full min-h-[350px]">
                 <span className="text-4xl bg-rose-50 p-4 rounded-2xl border border-rose-100 shadow-sm animate-bounce">🔒</span>
                 <div>
@@ -150,7 +194,6 @@ const UserProfile = () => {
                 </button>
               </div>
             ) : (
-              /* --- FORM CHÍNH THỨC HIỆN RA KHI NHẤN VÀO NÚT --- */
               <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm relative animate-fadeIn">
                 <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
                   <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
@@ -211,9 +254,49 @@ const UserProfile = () => {
               </div>
             )}
           </div>
-
         </div>
       </div>
+
+      {/* 🌟 MODAL NHẬP EMAIL MỚI */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white p-8 rounded-3xl w-full max-w-sm border border-sky-200 shadow-2xl">
+            <h3 className="text-xl font-black text-slate-800 mb-4">Đổi Email Đăng Nhập</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Chúng tôi sẽ gửi một đường dẫn xác nhận vào địa chỉ email mới của bạn.
+            </p>
+            
+            <input 
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="w-full bg-sky-50/50 border border-slate-200 rounded-xl p-3.5 mb-6 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
+              placeholder="Nhập email mới..."
+            />
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  setShowEmailModal(false);
+                  setNewEmail('');
+                }}
+                disabled={isRequestingEmail}
+                className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button 
+                onClick={handleRequestEmailChange}
+                disabled={isRequestingEmail}
+                className="flex-1 py-3 rounded-xl font-bold text-white bg-sky-600 hover:bg-sky-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isRequestingEmail && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                {isRequestingEmail ? 'Đang gửi...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

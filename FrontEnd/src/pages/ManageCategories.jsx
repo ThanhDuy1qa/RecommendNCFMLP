@@ -17,7 +17,8 @@ const ManageCategories = () => {
     handleOpenEdit,
     handleFileChange,
     handleSubmit,
-    handleDeleteCategory
+    handleDeleteCategory,
+    isSubmitting
   } = useManageCategories();
 
   return (
@@ -187,11 +188,23 @@ const ManageCategories = () => {
                 </div>
 
                 <div className="flex gap-4 pt-4 border-t border-sky-100">
-                  <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold transition-colors shadow-sm active:scale-95">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowModal(false)} 
+                    disabled={isSubmitting} // Khóa luôn nút Hủy khi đang tải
+                    className="flex-1 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold transition-colors shadow-sm active:scale-95 disabled:opacity-50"
+                  >
                     Hủy
                   </button>
-                  <button type="submit" className="flex-1 bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl font-bold transition-colors shadow-md shadow-sky-500/30 active:scale-95">
-                    {editingId ? "Lưu Thay Đổi" : "Tạo Mới"}
+                  
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting} // 🌟 VÔ HIỆU HÓA NÚT SUBMIT
+                    className="flex-1 bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl font-bold transition-colors shadow-md shadow-sky-500/30 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {/* HIỂN THỊ ICON XOAY TRÒN NẾU ĐANG SUBMIT */}
+                    {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                    {isSubmitting ? "Đang xử lý..." : (editingId ? "Lưu Thay Đổi" : "Tạo Mới")}
                   </button>
                 </div>
               </form>

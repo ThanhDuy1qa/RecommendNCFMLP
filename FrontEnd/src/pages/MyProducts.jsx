@@ -114,7 +114,7 @@ const MyProducts = () => {
 
           <div className="flex gap-3 w-full sm:w-auto">
             <Link
-              to="/admin/add-product"
+              to="/seller/add-product"
               className="flex-1 sm:flex-none text-center bg-sky-600 hover:bg-sky-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md shadow-sky-500/30 text-sm active:scale-95 flex items-center justify-center gap-2"
             >
               <span>➕</span> Thêm sản phẩm
@@ -436,7 +436,8 @@ const MyProducts = () => {
                       <td className="p-4 border-l border-sky-100/50 relative z-20">
                         <div className="flex items-center justify-center gap-2">
                           <Link
-                            to={`/seller/edit-product/${product._id}`}
+                            // 🌟 ĐÃ ĐỔI SANG ASIN
+                            to={`/seller/edit-product/${product.asin || product.item_id}`}
                             className="w-9 h-9 flex items-center justify-center text-sky-600 hover:text-white bg-sky-50 hover:bg-sky-600 rounded-xl transition-colors text-sm font-bold border border-sky-200 shadow-sm"
                             title="Sửa sản phẩm"
                           >
@@ -444,7 +445,8 @@ const MyProducts = () => {
                           </Link>
 
                           <button
-                            onClick={() => handleDelete(product._id)}
+                            // 🌟 ĐÃ ĐỔI SANG ASIN
+                            onClick={() => handleDelete(product.asin || product.item_id)}
                             className="w-9 h-9 flex items-center justify-center text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 rounded-xl transition-colors text-sm font-bold border border-rose-200 shadow-sm"
                             title="Xóa sản phẩm"
                           >

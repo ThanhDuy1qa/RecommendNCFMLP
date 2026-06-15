@@ -1,6 +1,17 @@
 const Category = require('../models/Category');
 const Product = require('../models/Product');
+const cloudinary = require('cloudinary').v2;
 
+const getPublicIdFromUrl = (url) => {
+    if (!url || !url.includes('cloudinary.com')) return null;
+    try {
+        const regex = /upload\/(?:v\d+\/)?([^\.]+)/;
+        const match = url.match(regex);
+        return match ? match[1] : null;
+    } catch (error) {
+        return null;
+    }
+};
 // 1. Lấy danh sách toàn bộ danh mục từ bảng Category mới
 const getAllCategories = async (req, res) => {
     try {
@@ -8,7 +19,7 @@ const getAllCategories = async (req, res) => {
         
         const categoriesWithCount = await Promise.all(categories.map(async (cat) => {
             // THUẬT TOÁN REGEX THÔNG MINH:
-            let safeName = cat.name.replace(/&amp;/g, '&').trim();
+            let safeName = (cat.name || '').replace(/&amp;/g, '&').trim();
             // 1. Bọc các ký tự đặc biệt (để tránh lỗi nếu tên có dấu ngoặc)
             safeName = safeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
             // 2. Biến chữ '&' thành '.*' (có thể là khoảng trắng, chữ and, hoặc bị xóa mất)
@@ -52,39 +63,37 @@ const updateCategory = async (req, res) => {
         const { name, description, isActive } = req.body;
         const categoryId = req.params.id;
         
-        // BƯỚC 1: Lấy danh mục cũ từ Database để biết "Tên cũ" là gì trước khi sửa
         const oldCategory = await Category.findById(categoryId);
         if (!oldCategory) {
             return res.status(404).json({ message: "Không tìm thấy danh mục!" });
         }
         const oldName = oldCategory.name;
 
-        // BƯỚC 2: Xử lý link ảnh mới từ Cloudinary (nếu có)
-        const image_url = req.file ? req.file.path : req.body.image_url;
+        // 🌟 NẾU CÓ ẢNH MỚI: Dọn dẹp ảnh danh mục cũ trên mây
+        let image_url = req.body.image_url;
+        if (req.file) {
+            if (oldCategory.image_url) {
+                const publicId = getPublicIdFromUrl(oldCategory.image_url);
+                if (publicId) await cloudinary.uploader.destroy(publicId);
+            }
+            image_url = req.file.path;
+        }
         
-        // BƯỚC 3: Cập nhật thông tin trong bảng Category
         const updatedCategory = await Category.findByIdAndUpdate(
             categoryId,
             { name, image_url, description, isActive },
             { new: true }
         );
 
-        // Thay đoạn cũ bằng đoạn này:
         if (name && oldName !== name) {
-            // Tạo Regex để tìm tên cũ, không phân biệt hoa thường, chấp nhận khoảng trắng thừa ở đầu/cuối
             const oldNameRegex = new RegExp(`^\\s*${oldName.trim()}\\s*$`, 'i');
-            
             const result = await Product.updateMany(
                 { main_cat: { $regex: oldNameRegex } }, 
                 { $set: { main_cat: name } }
             );
-            console.log(`Đã đồng bộ tên danh mục cho ${result.modifiedCount} sản phẩm.`);
         }
 
-        res.json({ 
-            message: "Cập nhật danh mục và đồng bộ sản phẩm thành công!", 
-            category: updatedCategory 
-        });
+        res.json({ message: "Cập nhật danh mục và đồng bộ sản phẩm thành công!", category: updatedCategory });
     } catch (error) {
         console.error("Lỗi cập nhật danh mục:", error);
         res.status(500).json({ message: "Lỗi Server khi cập nhật" });
@@ -98,25 +107,27 @@ const deleteCategory = async (req, res) => {
             return res.status(404).json({ message: "Không tìm thấy danh mục" });
         }
 
-        // BƯỚC BẢO VỆ: Đếm xem có sản phẩm nào đang dùng tên danh mục này không
         const productCount = await Product.countDocuments({ main_cat: category.name });
-        
         if (productCount > 0) {
-            // Trả về lỗi 400 (Bad Request) để chặn việc xóa
             return res.status(400).json({ 
                 message: `Không thể xóa! Đang có ${productCount} sản phẩm thuộc danh mục [${category.name}]. Vui lòng chuyển các sản phẩm sang danh mục khác hoặc xóa chúng trước.` 
             });
         }
 
-        // Nếu productCount === 0 thì mới cho phép xóa
+        // 🌟 BƯỚC 1: Dọn dẹp Icon Danh mục trên Cloudinary
+        if (category.image_url) {
+            const publicId = getPublicIdFromUrl(category.image_url);
+            if (publicId) await cloudinary.uploader.destroy(publicId);
+        }
+
+        // 🌟 BƯỚC 2: Xóa Database
         await Category.findByIdAndDelete(req.params.id);
-        res.json({ message: "Đã xóa danh mục an toàn!" });
+        res.json({ message: "Đã xóa danh mục và Icon thành công!" });
     } catch (error) {
         console.error("Lỗi xóa danh mục:", error);
         res.status(500).json({ message: "Lỗi Server khi xóa" });
     }
 };
-
 module.exports = {
     getAllCategories,
     createCategory,

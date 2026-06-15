@@ -19,4 +19,6 @@ router.post('/add', verifyToken, reviewController.addReview);
 
 router.put('/update', verifyToken, reviewController.updateReview);
 
+router.delete('/delete/:asin', verifyToken, reviewController.deleteReview);
+
 module.exports = router;

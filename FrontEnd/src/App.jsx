@@ -23,6 +23,7 @@ import UserProfile from './pages/UserProfile';
 import UserReviews from './pages/UserReviews';
 import SmartCatalog from './pages/SmartCatalog';
 import TrendCollection from './pages/TrendCollection';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Seller pages
 import MyProducts from './pages/MyProducts';
@@ -32,7 +33,6 @@ import SellerOrders from './pages/SellerOrders';
 import InventoryAdvisor from './pages/InventoryAdvisor';
 import SellerDashboard from './pages/SellerDashboard';
 import TargetedMarketing from './pages/TargetedMarketing';
-
 // Admin pages
 import AdminDashboard from './pages/AdminDashboard';
 import ManageAllProducts from './pages/ManageAllProducts';
@@ -67,6 +67,7 @@ const App = () => {
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/discover" element={<SmartCatalog />} />
                 <Route path="/collection/:type" element={<TrendCollection />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
 
                 {/* =========================================
                     KHU VỰC DÀNH CHO USER ĐÃ ĐĂNG NHẬP (Role 0, 1, 2)
@@ -83,6 +84,7 @@ const App = () => {
                   </ProtectedRoute>
                 } />
 
+                
                 {/* =========================================
                     KHU VỰC DÀNH RIÊNG CHO SELLER (Role 1) & ADMIN (Role 2)
                     ========================================= */}
@@ -98,11 +100,13 @@ const App = () => {
                   </ProtectedRoute>
                 } />
                 
-                <Route path="/admin/add-product" element={
-                  <ProtectedRoute allowedRoles={[1, 2]}>
+                <Route path="/seller/add-product" element={
+                  <ProtectedRoute allowedRoles={[1]}>
                     <AddProduct />
                   </ProtectedRoute>
                 } />
+
+                
 
                 <Route path="/seller/edit-product/:id" element={
                   <ProtectedRoute allowedRoles={[1, 2]}>
@@ -136,7 +140,16 @@ const App = () => {
                     <AdminDashboard />
                   </ProtectedRoute>
                 } />
-
+                <Route path="/admin/add-product" element={
+                  <ProtectedRoute allowedRoles={[2]}>
+                    <AddProduct />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/edit-product/:id" element={
+                  <ProtectedRoute allowedRoles={[2]}>
+                    <EditProduct />
+                  </ProtectedRoute>
+                } />
                 <Route path="/admin/manage-products" element={
                   <ProtectedRoute allowedRoles={[2]}>
                     <ManageAllProducts />

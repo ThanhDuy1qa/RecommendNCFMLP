@@ -1,11 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react'; // Bổ sung useState
 import { Link } from 'react-router-dom';
 import { useUserReviews } from '../hooks/useUserReviews';
+import ReviewModal from '../components/ReviewModal'; // IMPORT MODAL
 
 const UserReviews = () => {
-  // Triệu hồi dữ liệu từ Hook tự động
   const { reviews, loading, error } = useUserReviews();
 
+  // THÊM CÁC BIẾN VÀ HÀM NÀY VÀO TRƯỚC HÀM renderStars
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, data: null });
+
+  // Sửa lại hàm này trong UserReviews.jsx
+  const handleReviewSubmit = async (formData, submitMode) => {
+    // Dù ở trang Quản lý chỉ có chế độ Sửa (edit), ta vẫn truyền chuẩn form
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:5000/api/reviews/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        alert("✅ Đã cập nhật đánh giá!");
+        setModalConfig({ isOpen: false, data: null });
+        window.location.reload(); 
+      } else { 
+        const data = await res.json();
+        alert("❌ Lỗi: " + data.message); 
+      }
+    } catch (e) { alert("❌ Lỗi kết nối!"); }
+  };
+  const handleDeleteReview = async (asin) => {
+    if (!window.confirm("🗑 Bạn có chắc chắn muốn xóa bài đánh giá này không?")) return;
+    
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/reviews/delete/${asin}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        alert("✅ Đã xóa đánh giá!");
+        window.location.reload();
+      } else { alert("❌ Không thể xóa!"); }
+    } catch (e) { alert("❌ Lỗi kết nối!"); }
+  };
   // Thuật toán vẽ số lượng sao vàng
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -104,12 +142,36 @@ const UserReviews = () => {
                       {item.reviewText}
                     </p>
                   </div>
+
+                  {/* THÊM CỤM NÚT SỬA VÀ XÓA VÀO ĐÂY */}
+                  <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
+                    <button 
+                      onClick={() => setModalConfig({ isOpen: true, data: item })}
+                      className="px-4 py-2 text-sm font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition-colors"
+                    >
+                      ✏️ Chỉnh sửa
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteReview(item.asin)}
+                      className="px-4 py-2 text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors"
+                    >
+                      🗑 Xóa
+                    </button>
+                  </div>
+
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      <ReviewModal 
+        isOpen={modalConfig.isOpen}
+        mode="edit" 
+        initialData={modalConfig.data}
+        onClose={() => setModalConfig({ isOpen: false, data: null })}
+        onSubmit={handleReviewSubmit}
+      />
     </div>
   );
 };

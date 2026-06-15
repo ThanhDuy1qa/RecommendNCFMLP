@@ -2,14 +2,18 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import defaultIcon from '../assets/no-image.png';
 import { useManageAllProducts } from '../hooks/useManageAllProducts';
+// 🌟 IMPORT hàm từ file utils mới tạo
+import { getMatchedCategory } from '../utils/categoryUtils';
 
 const ManageAllProducts = () => {
   const navigate = useNavigate();
-  // 🌟 ĐÃ SỬA: Lấy thêm categories, selectedCategory, handleCategoryChange từ Hook
   const { 
     products, loading, search, hasMore, handleSearchChange, loadMore, handleDeleteProduct,
     categories, selectedCategory, handleCategoryChange 
   } = useManageAllProducts();
+
+  // Lấy dữ liệu danh mục chuẩn cho ô Dropdown bộ lọc
+  const filterCatData = getMatchedCategory(selectedCategory, categories);
 
   return (
     <div className="bg-sky-200 min-h-screen p-4 md:p-8 text-slate-800">
@@ -18,7 +22,6 @@ const ManageAllProducts = () => {
         {/* HEADER */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-sky-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           
-          {/* --- CỤM BÊN TRÁI: Nút Quay Lại + Tiêu đề --- */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <button 
               onClick={() => navigate(-1)} 
@@ -26,31 +29,44 @@ const ManageAllProducts = () => {
             >
               &larr; Quay lại
             </button>
-            
             <div>
               <h1 className="text-2xl md:text-3xl font-black text-sky-800 flex items-center gap-3">
                 <span className="bg-sky-100 p-2 rounded-xl shadow-sm">🛡️</span> Quản Trị Hệ Thống Sản Phẩm
               </h1>
-              <p className="text-sm text-slate-500 mt-2 font-medium">
-                Quản lý toàn bộ danh sách sản phẩm trên sàn thương mại điện tử.
-              </p>
             </div>
           </div>
           
-          {/* --- CỤM BÊN PHẢI: Tìm kiếm + Lọc Danh Mục + Nút Thêm --- */}
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto mt-4 lg:mt-0">
             
-            {/* 🌟 THÊM MỚI: BỘ LỌC DANH MỤC */}
-            <select 
-              value={selectedCategory} 
-              onChange={handleCategoryChange}
-              className="w-full sm:w-48 bg-white border border-slate-200 rounded-xl px-4 py-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-slate-700 shadow-sm font-bold cursor-pointer appearance-none"
-            >
-              <option value="">📁 Tất cả danh mục</option>
-              {categories?.map((cat, idx) => (
-                <option key={cat._id || idx} value={cat.name}>{cat.name}</option>
-              ))}
-            </select>
+            {/* BỘ LỌC DANH MỤC CÓ ICON */}
+            <div className="relative w-full sm:w-64 shrink-0">
+              
+              {/* 🌟 1. CHỈ HIỂN THỊ ẢNH KHI ĐÃ CHỌN MỘT DANH MỤC CỤ THỂ */}
+              {selectedCategory && (
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <img 
+                    src={filterCatData.image} 
+                    className="w-6 h-6 object-contain rounded bg-white shadow-sm" 
+                    alt="category-icon" 
+                    onError={(e) => { e.target.onerror = null; e.target.src = defaultIcon; }}
+                  />
+                </div>
+              )}
+
+              <select
+                value={selectedCategory}
+                onChange={handleCategoryChange}
+                // 🌟 2. CĂN LỀ ĐỘNG: Nếu có ảnh thì thụt lề 12 (pl-12), nếu không có ảnh thì lùi lại lề 4 (pl-4)
+                className={`w-full bg-slate-50 border border-slate-200 rounded-xl pr-8 py-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-slate-800 shadow-sm font-bold appearance-none cursor-pointer text-sm ${selectedCategory ? 'pl-12' : 'pl-4'}`}
+              >
+                <option value="">📁 Tất cả danh mục</option>
+                {categories?.map((cat) => (
+                  <option key={cat._id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
+              
+              <span className="absolute right-4 top-3.5 pointer-events-none text-slate-400 text-xs">▼</span>
+            </div>
 
             <div className="relative flex-grow w-full lg:w-64">
               <input 
@@ -58,19 +74,17 @@ const ManageAllProducts = () => {
                 placeholder="Tìm tên, ASIN..."
                 value={search}
                 onChange={handleSearchChange}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-slate-800 shadow-sm font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all text-slate-800 shadow-sm font-medium text-sm"
               />
               <span className="absolute right-4 top-3.5 opacity-50">🔍</span>
             </div>
 
-            {/* NÚT THÊM SẢN PHẨM CHO ADMIN */}
             <Link 
               to="/admin/add-product" 
-              className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-md shadow-sky-500/30 whitespace-nowrap text-center flex items-center justify-center gap-2 active:scale-95"
+              className="w-full sm:w-auto bg-sky-600 hover:bg-sky-500 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-md shadow-sky-500/30 whitespace-nowrap text-center flex items-center justify-center gap-2 active:scale-95 text-sm"
             >
               <span>➕</span> Thêm Mới
             </Link>
-            
           </div>
         </div>
 
@@ -81,86 +95,96 @@ const ManageAllProducts = () => {
               <thead className="bg-sky-50/80 text-sky-800 text-xs uppercase font-bold tracking-wider border-b-2 border-sky-200">
                 <tr>
                   <th className="p-4 w-[100px] text-center">Ảnh</th>
-                  <th className="p-4 w-[40%]">Thông tin sản phẩm</th>
-                  <th className="p-4 w-[150px] border-l border-sky-100">Danh mục & Brand</th>
+                  <th className="p-4 w-[35%]">Thông tin sản phẩm</th>
+                  <th className="p-4 w-[200px] border-l border-sky-100">Danh mục</th>
+                  <th className="p-4 w-[150px] border-l border-sky-100">Thương hiệu</th>
                   <th className="p-4 w-[120px] text-right border-l border-sky-100">Giá</th>
                   <th className="p-4 w-[150px] min-w-[150px] text-center border-l border-sky-100">Thao tác</th>
                 </tr>
               </thead>
               
               <tbody className="text-sm">
-                {products.map((item) => (
-                  <tr key={item._id} className="border-b border-sky-100 hover:bg-sky-50/50 transition-colors group">
-                    
-                    {/* Ảnh */}
-                    <td className="p-4">
-                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center p-1.5 mx-auto border border-slate-200 shadow-sm">
-                        <img 
-                          src={item.image || defaultIcon} 
-                          alt={item.title} 
-                          className="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => e.target.src = defaultIcon}
-                        />
-                      </div>
-                    </td>
+                {products.map((item) => {
+                  // 🌟 GỌI HÀM SO KHỚP CHO TỪNG SẢN PHẨM
+                  const matchedCat = getMatchedCategory(item.main_cat, categories);
 
-                    {/* Thông tin sản phẩm */}
-                    <td className="p-4 pr-6">
-                      <div className="font-bold text-slate-800 line-clamp-2 mb-1.5 leading-snug group-hover:text-sky-600 transition-colors" title={item.title}>
-                        {item.title}
-                      </div>
-                      <div className="text-[10px] text-sky-700 font-mono font-bold bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md shadow-sm w-fit">
-                        Mã: {item.asin}
-                      </div>
-                    </td>
+                  return (
+                    <tr key={item._id} className="border-b border-sky-100 hover:bg-sky-50/50 transition-colors group">
+                      <td className="p-4">
+                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center p-1.5 mx-auto border border-slate-200 shadow-sm">
+                          <img 
+                            src={item.image_url || item.image || defaultIcon} 
+                            alt={item.title} 
+                            className="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-300"
+                            onError={(e) => { e.target.onerror = null; e.target.src = defaultIcon; }}
+                          />
+                        </div>
+                      </td>
 
-                    {/* Danh mục & Thương hiệu */}
-                    <td className="p-4 border-l border-sky-100/50">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg shadow-sm line-clamp-1 truncate" title={item.main_cat}>
-                          📁 {item.main_cat || 'Chưa phân loại'}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500 px-1 truncate" title={item.brand}>
-                          Hãng: {item.brand || 'N/A'}
-                        </span>
-                      </div>
-                    </td>
+                      <td className="p-4 pr-6">
+                        <div className="font-bold text-slate-800 line-clamp-2 mb-1.5 leading-snug group-hover:text-sky-600 transition-colors" title={item.title}>
+                          {item.title}
+                        </div>
+                        <div className="text-[10px] text-sky-700 font-mono font-bold bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md shadow-sm w-fit">
+                          Mã: {item.asin}
+                        </div>
+                      </td>
 
-                    {/* Giá */}
-                    <td className="p-4 text-right font-black text-emerald-600 font-mono text-base border-l border-sky-100/50">
-                      ${item.price}
-                    </td>
+                      {/* 🌟 CỘT DANH MỤC ĐÃ ĐƯỢC ĐỒNG BỘ HIỂN THỊ */}
+                     {/* CỘT 3: DANH MỤC */}
+                      <td className="p-4 border-l border-sky-100/50">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={matchedCat.image} 
+                            alt={matchedCat.name} 
+                            className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-200 p-1 shrink-0 shadow-sm"
+                            onError={(e) => { e.target.onerror = null; e.target.src = defaultIcon; }}
+                          />
+                          <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-1.5 rounded-lg shadow-sm line-clamp-2" title={matchedCat.name}>
+                            {matchedCat.name || 'Chưa phân loại'}
+                          </span>
+                        </div>
+                      </td>
 
-                    {/* Thao tác */}
-                    <td className="p-4 border-l border-sky-100/50 relative z-20">
-                      <div className="flex items-center justify-center gap-2">
-                        <Link 
-                          to={`/seller/edit-product/${item._id}`}
-                          className="w-9 h-9 flex items-center justify-center text-sky-600 hover:text-white bg-sky-50 hover:bg-sky-600 rounded-xl transition-colors text-sm font-bold border border-sky-200 shadow-sm"
-                          title="Sửa sản phẩm"
-                        >
-                          ✏️
-                        </Link>
-                        
-                        <button 
-                          onClick={() => handleDeleteProduct(item._id)}
-                          className="w-9 h-9 flex items-center justify-center text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 rounded-xl transition-colors text-sm font-bold border border-rose-200 shadow-sm"
-                          title="Xóa sản phẩm"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                    
-                  </tr>
-                ))}
-                
-                {/* Trạng thái Trống (Empty State) */}
+                      {/* CỘT 4: THƯƠNG HIỆU (BRAND) */}
+                      <td className="p-4 border-l border-sky-100/50">
+                        <div className="text-xs font-bold text-slate-700 truncate" title={item.brand}>
+                          {item.brand && item.brand !== 'N/A' && item.brand !== 'null' ? item.brand : 'Không có'}
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-right font-black text-emerald-600 font-mono text-base border-l border-sky-100/50">
+                        {item.price ? (String(item.price).includes('$') ? item.price : `$${item.price}`) : 'Liên hệ'}
+                      </td>
+
+                      <td className="p-4 border-l border-sky-100/50 relative z-20">
+                        <div className="flex items-center justify-center gap-2">
+                          <Link 
+                            // 🌟 ĐÃ ĐỔI SANG ASIN
+                            to={`/admin/edit-product/${item.asin || item.item_id}`}
+                            className="w-9 h-9 flex items-center justify-center text-sky-600 hover:text-white bg-sky-50 hover:bg-sky-600 rounded-xl transition-colors text-sm font-bold border border-sky-200 shadow-sm"
+                          >
+                            ✏️
+                          </Link>
+
+                          <button 
+                            // 🌟 ĐÃ ĐỔI SANG ASIN
+                            onClick={() => handleDeleteProduct(item.asin || item.item_id)}
+                            className="w-9 h-9 flex items-center justify-center text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 rounded-xl transition-colors text-sm font-bold border border-rose-200 shadow-sm"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
                 {!loading && products.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="p-16 text-center">
+                    <td colSpan="6" className="p-16 text-center">
                       <span className="text-6xl block mb-4">🔍</span>
-                      <p className="text-slate-500 font-medium text-lg">Không tìm thấy sản phẩm nào khớp với tìm kiếm.</p>
+                      <p className="text-slate-500 font-medium text-lg">Không tìm thấy sản phẩm nào.</p>
                     </td>
                   </tr>
                 )}
@@ -168,15 +192,13 @@ const ManageAllProducts = () => {
             </table>
           </div>
 
-          {/* Loading Spinner */}
           {loading && (
             <div className="p-12 text-center flex flex-col items-center justify-center bg-white">
               <div className="w-10 h-10 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <span className="text-sky-700 font-bold animate-pulse">Hệ thống đang truy xuất dữ liệu...</span>
+              <span className="text-sky-700 font-bold animate-pulse">Đang tải dữ liệu...</span>
             </div>
           )}
 
-          {/* Nút Tải Thêm */}
           {!loading && hasMore && (
             <div className="p-6 text-center bg-white border-t border-sky-100 pb-8">
               <button 

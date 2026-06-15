@@ -4,9 +4,9 @@ const multer = require('multer');
 
 // Sử dụng chung thông tin cấu hình tài khoản Cloudinary của hệ thống
 cloudinary.config({
-  cloud_name: 'ĐIỀN_CLOUD_NAME_CỦA_BẠN',
-  api_key: 'ĐIỀN_API_KEY_CỦA_BẠN',
-  api_secret: 'ĐIỀN_API_SECRET_CỦA_BẠN'
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
 // Cấu hình thư mục lưu trữ độc lập cho Sản phẩm

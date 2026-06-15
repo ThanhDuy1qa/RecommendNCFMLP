@@ -3,7 +3,7 @@ const Recommendation = require('../models/Recommendation');
 const User = require('../models/User');
 const SmartCatalog = require('../models/SmartCatalog');
 const Review = require('../models/Review');
-
+const cloudinary = require('cloudinary').v2;
 // =======================================================
 // HÀM BỔ TRỢ: CHUẨN HÓA GIÁ TIỀN
 // Loại bỏ mọi ký tự thừa (như dấu $), chỉ trả về con số sạch (VD: "17.99")
@@ -15,6 +15,21 @@ const formatPrice = (price) => {
     return isNaN(parsed) ? 'Liên hệ' : parsed.toFixed(2);
 };
 
+/**
+ * Hàm hỗ trợ: Tách Public ID từ URL của Cloudinary để lấy mã định danh ảnh
+ * VD URL: https://res.cloudinary.com/dcaqccq0j/image/upload/v1712345/DATN_Products/abc123.png
+ * Sẽ tách ra được: DATN_Products/abc123
+ */
+const getPublicIdFromUrl = (url) => {
+    if (!url || !url.includes('cloudinary.com')) return null;
+    try {
+        const regex = /upload\/(?:v\d+\/)?([^\.]+)/;
+        const match = url.match(regex);
+        return match ? match[1] : null;
+    } catch (error) {
+        return null;
+    }
+};
 // =======================================================
 // 1. PUBLIC / CUSTOMER FUNCTIONS
 // Các hàm dùng cho khách hàng hoặc trang công khai
@@ -147,12 +162,22 @@ const getSearchSuggestions = async (req, res) => {
 };
 
 /**
- * Lấy chi tiết sản phẩm theo MongoDB _id.
+ * Lấy chi tiết sản phẩm theo MongoDB _id hoặc ASIN.
  * Dùng cho trang sửa sản phẩm.
  */
 const getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        const idParam = req.params.id;
+        let product;
+
+        // 🌟 KIỂM TRA ĐỊNH DẠNG THÔNG MINH
+        // Nếu là ObjectId chuẩn của MongoDB (24 ký tự hex)
+        if (idParam.match(/^[0-9a-fA-F]{24}$/)) {
+            product = await Product.findById(idParam);
+        } else {
+            // Nếu không phải, tự động chuyển sang tìm bằng mã ASIN
+            product = await Product.findOne({ asin: idParam });
+        }
 
         if (!product) {
             return res.status(404).json({
@@ -162,6 +187,7 @@ const getProductById = async (req, res) => {
 
         res.json(product);
     } catch (error) {
+        console.error('Lỗi lấy chi tiết sản phẩm:', error);
         res.status(500).json({
             message: 'ID sản phẩm không hợp lệ hoặc lỗi Server'
         });
@@ -490,45 +516,43 @@ const getMyProducts = async (req, res) => {
  */
 const updateProduct = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        // 🌟 ĐÃ SỬA: Tìm kiếm sản phẩm bằng mã ASIN thay vì _id
+        const product = await Product.findOne({ asin: req.params.id });
 
         if (!product) {
-            return res.status(404).json({
-                message: 'Không tìm thấy sản phẩm!'
-            });
+            return res.status(404).json({ message: 'Không tìm thấy sản phẩm!' });
         }
 
         if (req.user.role !== 2 && product.seller_id.toString() !== req.user.id) {
-            return res.status(403).json({
-                message: 'Bạn không có quyền sửa sản phẩm này!'
-            });
+            return res.status(403).json({ message: 'Bạn không có quyền sửa sản phẩm này!' });
         }
 
         const updateData = { ...req.body };
 
+        // Logic dọn rác Cloudinary (giữ nguyên của bạn)
         if (req.file) {
+            const oldImageUrl = product.image_url_high || product.image_url;
+            if (oldImageUrl) {
+                const publicId = getPublicIdFromUrl(oldImageUrl);
+                if (publicId) await cloudinary.uploader.destroy(publicId);
+            }
             updateData.image_url_high = req.file.path;
             updateData.image_url = req.file.path;
         }
 
-        const updatedProduct = await Product.findByIdAndUpdate(
-            req.params.id,
+        // 🌟 ĐÃ SỬA: Cập nhật dữ liệu bằng ASIN
+        const updatedProduct = await Product.findOneAndUpdate(
+            { asin: req.params.id },
             { $set: updateData },
             { new: true }
         );
 
-        res.json({
-            message: 'Cập nhật thành công!',
-            product: updatedProduct
-        });
+        res.json({ message: 'Cập nhật thành công!', product: updatedProduct });
     } catch (error) {
         console.error('Lỗi hệ thống khi cập nhật sản phẩm:', error);
-        res.status(500).json({
-            message: 'Lỗi Server khi cập nhật sản phẩm'
-        });
+        res.status(500).json({ message: 'Lỗi Server khi cập nhật sản phẩm' });
     }
 };
-
 /**
  * Xóa sản phẩm.
  * Seller chỉ được xóa sản phẩm của chính mình.
@@ -536,32 +560,33 @@ const updateProduct = async (req, res) => {
  */
 const deleteProduct = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        // 🌟 ĐÃ SỬA: Tìm bằng mã ASIN
+        const product = await Product.findOne({ asin: req.params.id });
 
         if (!product) {
-            return res.status(404).json({
-                message: 'Không tìm thấy sản phẩm!'
-            });
+            return res.status(404).json({ message: 'Không tìm thấy sản phẩm!' });
         }
 
         if (req.user.role !== 2 && product.seller_id.toString() !== req.user.id) {
-            return res.status(403).json({
-                message: 'Bạn không có quyền xóa sản phẩm này!'
-            });
+            return res.status(403).json({ message: 'Bạn không có quyền xóa sản phẩm này!' });
         }
 
-        await Product.findByIdAndDelete(req.params.id);
+        // Logic dọn rác Cloudinary (giữ nguyên của bạn)
+        const imageUrl = product.image_url_high || product.image_url;
+        if (imageUrl) {
+            const publicId = getPublicIdFromUrl(imageUrl);
+            if (publicId) await cloudinary.uploader.destroy(publicId);
+        }
 
-        res.json({
-            message: 'Đã xóa sản phẩm thành công!'
-        });
+        // 🌟 ĐÃ SỬA: Xóa bằng ASIN
+        await Product.findOneAndDelete({ asin: req.params.id });
+
+        res.json({ message: 'Đã xóa sản phẩm và dọn dẹp bộ nhớ thành công!' });
     } catch (error) {
-        res.status(500).json({
-            message: 'Lỗi Server khi xóa sản phẩm'
-        });
+        console.error('Lỗi hệ thống khi xóa sản phẩm:', error);
+        res.status(500).json({ message: 'Lỗi Server khi xóa sản phẩm' });
     }
 };
-
 /**
  * Thống kê top sản phẩm bán chạy.
  * Seller: chỉ thống kê sản phẩm của chính seller.
