@@ -65,6 +65,27 @@ export const useSellerOrders = () => {
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
+    const currentOrder = orders.find(o => o._id === orderId);
+    if (!currentOrder) return;
+
+    // 1. KIỂM TRA & CHẶN LÙI TRẠNG THÁI VỀ "CHỜ XÁC NHẬN"
+    if (currentOrder.status !== 'Chờ xác nhận' && newStatus === 'Chờ xác nhận') {
+      alert("❌ Hành động bị từ chối! Không thể lùi trạng thái về 'Chờ xác nhận'.");
+      return; 
+    }
+
+    // 🌟 2. KHÓA MỚI: CHẶN LÙI TỪ "ĐANG GIAO HÀNG" VỀ "ĐANG XỬ LÝ"
+    if ((currentOrder.status === 'Đang giao hàng' || currentOrder.status === 'Đang giao') && newStatus === 'Đang xử lý') {
+      alert("❌ Lỗi nghiệp vụ: Hàng đã giao cho bưu tá đi phát thì không thể quay ngược lại trạng thái 'Đang xử lý' (Đóng gói) được nữa!");
+      return;
+    }
+
+    // 3. CHẶN SELLER CHỌN "HOÀN THÀNH" (Khóa lớp 2 bảo vệ API)
+    if (newStatus === 'Hoàn thành') {
+      alert("⚠️ Lỗi Nghiệp Vụ: Bạn không thể tự chốt đơn thành 'Hoàn thành'.");
+      return;
+    }
+
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`http://localhost:5000/api/orders/update-status/${orderId}`, {
@@ -77,7 +98,6 @@ export const useSellerOrders = () => {
       });
 
       if (res.ok) {
-        // Cập nhật State trực tiếp thay vì reload API để UX mượt hơn
         setOrders(prevOrders => 
           prevOrders.map(order => 
             order._id === orderId ? { ...order, status: newStatus } : order

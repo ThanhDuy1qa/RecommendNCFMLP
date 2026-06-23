@@ -3,13 +3,13 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const transport = nodemailer.createTransport({
-  host: "sandbox.smtp.mailtrap.io",
-  port: 2525,
-  auth: {
-    user: "aca4ecb2611f88",
-    pass: "74c3f54128ee0f" 
-  }
+const transporter = nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    auth: {
+        user: 'nina56@ethereal.email',
+        pass: 'Jq1gDSPVjmhZ2RTBHm'
+    }
 });
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const sendMarketingEmail = async (req, res) => {
@@ -17,7 +17,7 @@ const sendMarketingEmail = async (req, res) => {
     const { to, subject, html } = req.body; 
     const recipientList = Array.isArray(to) ? to.join(', ') : to;
 
-    const info = await transport.sendMail({
+    const info = await transporter.sendMail({
       from: '"Kho Điện Tử Marketing" <marketing@khodientu.com>',
       to: recipientList, 
       subject: subject,
@@ -25,6 +25,9 @@ const sendMarketingEmail = async (req, res) => {
     });
 
     console.log("✅ Đã gửi chiến dịch thành công! MessageId:", info.messageId);
+    // THÊM DÒNG NÀY ĐỂ IN RA LINK XEM THƯ:
+    console.log("👉 Xem email tại đây:", nodemailer.getTestMessageUrl(info)); 
+    
     res.status(200).json({ message: "Gửi email thành công!", messageId: info.messageId });
 
   } catch (error) {
@@ -109,27 +112,27 @@ const requestEmailChange = async (req, res) => {
 
     // 🌟 KỸ THUẬT CHẠY NGẦM (BACKGROUND TASK) ĐỂ GỬI 2 MAIL
     try {
-      // 1. Gửi email xác nhận đến địa chỉ mới trước (Luồng chính bắt buộc đợi)
-      await transport.sendMail(mailToNew);
+      // 1. Gửi email xác nhận đến địa chỉ mới trước
+      const infoNew = await transporter.sendMail(mailToNew);
+      console.log("👉 Xem email xác nhận MỚI tại đây:", nodemailer.getTestMessageUrl(infoNew));
       console.log("✅ [1] Đã gửi link xác nhận đến mail mới thành công.");
 
       // 2. NGAY LẬP TỨC trả kết quả về Frontend để UI không bị treo
       res.json({ message: 'Đã gửi link xác nhận tới Email mới và gửi cảnh báo về Email cũ của bạn. Vui lòng kiểm tra!' });
 
-      // 3. CHẠY NGẦM: Cho Node.js tự động gửi mail thứ 2 sau 10 giây (10000ms)
-      // Lúc này Frontend đã qua bước khác, không cần quan tâm server làm gì nữa.
+      // 3. CHẠY NGẦM: Cho Node.js tự động gửi mail thứ 2 sau 10 giây
       setTimeout(async () => {
         try {
-          await transport.sendMail(mailToOld);
+          const infoOld = await transporter.sendMail(mailToOld);
           console.log("✅ [2] Đã gửi cảnh báo bảo mật đến mail cũ (Chạy ngầm thành công).");
+          console.log("👉 Xem email CẢNH BÁO CŨ tại đây:", nodemailer.getTestMessageUrl(infoOld));
         } catch (oldMailError) {
           console.error("⚠️ [2] Lỗi gửi mail cũ trong background:", oldMailError.message);
         }
-      }, 10000); // Đủ lâu để Mailtrap chắc chắn nhả Rate Limit
+      }, 10000); 
 
     } catch (mailError) {
       console.error("❌ Lỗi nghiêm trọng ở email xác nhận mới:", mailError);
-      // Chỉ báo lỗi nếu luồng chính gặp trục trặc và chưa trả response về Frontend
       if (!res.headersSent) {
         return res.status(500).json({ message: 'Không thể gửi email xác nhận. Vui lòng thử lại sau!' });
       }
@@ -168,8 +171,80 @@ const verifyEmailChange = async (req, res) => {
   }
 };
 
+// 🌟 HÀM MỚI: GỬI EMAIL NHẮC NHỞ THANH TOÁN
+// 🌟 HÀM MỚI: GỬI EMAIL NHẮC NHỞ THANH TOÁN
+const sendOrderReminderEmail = async (userEmail, orderId, amountInVND) => {
+  try {
+    const checkoutLink = `http://localhost:5173/order-history`; 
+
+    // 🌟 SỬA Ở ĐÂY: Thêm "const info =" vào đầu
+    const info = await transporter.sendMail({
+      from: '"Hệ Thống Bán Hàng" <no-reply@khodientu.com>',
+      to: userEmail,
+      subject: "⏳ Đơn hàng của bạn đang chờ thanh toán!",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #ea580c; margin-bottom: 20px;">Bạn đã quên thanh toán đơn hàng?</h2>
+          <p>Chào bạn,</p>
+          <p>Hệ thống ghi nhận bạn có một đơn hàng (Mã: <b>${orderId.substring(orderId.length - 8).toUpperCase()}</b>) trị giá <b>${amountInVND.toLocaleString()} đ</b> đang ở trạng thái Chờ xác nhận.</p>
+          <p>Đơn hàng sẽ tự động bị hủy sau 24 giờ kể từ lúc đặt nếu không được thanh toán. Vui lòng hoàn tất thanh toán để chúng tôi có thể giao hàng cho bạn sớm nhất nhé!</p>
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${checkoutLink}" style="display: inline-block; padding: 12px 24px; background-color: #ea580c; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 8px;">
+              Thanh toán ngay
+            </a>
+          </div>
+        </div>
+      `
+    });
+    console.log("👉 Xem email nhắc nhở tại đây:", nodemailer.getTestMessageUrl(info));
+    console.log(`✅ Đã gửi mail nhắc nhở thanh toán cho đơn hàng ${orderId}`);
+  } catch (error) {
+    console.error(`❌ Lỗi gửi mail nhắc nhở cho đơn ${orderId}:`, error);
+  }
+};
+
+const sendShippingEmail = async (userEmail, orderId) => {
+  try {
+    const orderHistoryLink = `http://localhost:5173/order-history`;
+
+    // 🌟 SỬA Ở ĐÂY: Thêm "const info =" vào đầu
+    const info = await transporter.sendMail({
+      from: '"Kho Điện Tử - Vận Chuyển" <shipping@khodientu.com>',
+      to: userEmail,
+      subject: "🚚 Đơn hàng của bạn đang trên đường giao!",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #bae6fd; border-radius: 12px; background-color: #f0f9ff;">
+          <h2 style="color: #0284c7; margin-bottom: 20px;">Đơn hàng đã được bàn giao cho đơn vị vận chuyển</h2>
+          <p>Chào bạn,</p>
+          <p>Tin vui! Đơn hàng mang mã số <b>#${orderId.substring(orderId.length - 8).toUpperCase()}</b> của bạn đã được cửa hàng đóng gói cẩn thận và giao cho bưu tá.</p>
+          <p>Thời gian giao hàng dự kiến thường từ <b>2 - 4 ngày làm việc</b> tùy khu vực. Vui lòng chú ý điện thoại để bưu tá liên hệ giao hàng nhé!</p>
+          
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${orderHistoryLink}" style="display: inline-block; padding: 12px 24px; background-color: #0284c7; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 8px;">
+              Theo dõi đơn hàng
+            </a>
+          </div>
+          
+          <p style="color: #64748b; font-size: 13px; margin-top: 20px;">
+            <b>Lưu ý:</b> Chỉ bấm nút "Đã nhận được hàng" trên ứng dụng SAU KHI bạn đã nhận và kiểm tra sản phẩm thành công để được bảo vệ quyền lợi.
+          </p>
+        </div>
+      `
+    });
+    
+    console.log("👉 Xem email tại đây:", nodemailer.getTestMessageUrl(info));
+    console.log(`✅ Đã gửi mail thông báo giao hàng cho đơn ${orderId}`);
+  } catch (error) {
+    console.error(`❌ Lỗi gửi mail giao hàng cho đơn ${orderId}:`, error);
+  }
+};
+
+// Đừng quên xuất hàm này ra ở cuối file:
 module.exports = {
+  transporter,
   sendMarketingEmail,
   requestEmailChange,
-  verifyEmailChange
+  verifyEmailChange,
+  sendOrderReminderEmail,
+  sendShippingEmail,
 };

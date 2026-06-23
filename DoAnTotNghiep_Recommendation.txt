@@ -6,6 +6,12 @@ npm install jsonwebtoken
 npm start
 npm install recharts
 npm install cloudinary multer multer-storage-cloudinary
+npm install nodemailer
+npm install react-quill
+npm install node-cron
+npm install axios nodemailer
+npm install googleapis node-cron
+
 frontend react.js, vite, tailwindCSS
 backend node.js express.js
 database mongo DB

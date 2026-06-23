@@ -12,8 +12,12 @@ router.get('/detail/:id', productController.getProductById);
 router.get('/my-products', verifyToken, productController.getMyProducts);
 // 5. Các chức năng CRUD dành cho seller
 router.put('/update/:id', verifyToken, uploadProductCloud.single('image'), productController.updateProduct);
+
 router.delete('/delete/:id', verifyToken, productController.deleteProduct);
 router.post('/add', verifyToken, uploadProductCloud.single('image'), productController.addProduct);
+
+router.post('/launch-survey', verifyToken, productController.createProductAndSurvey);
+
 // 6. Gợi ý sản phẩm AI dành cho reviewer
 router.get('/recommendations/:reviewerId', productController.getAiRecommendations);
 // 7. Thống kê sản phẩm theo scenario dành cho admin
@@ -22,5 +26,6 @@ router.get('/admin/scenario-summary', verifyToken, productController.getScenario
 router.get('/', productController.getProducts);
 // 9. Lấy sản phẩm theo ASIN (dành cho tất cả người dùng)
 router.get('/:asin', productController.getProductByAsin);
+
 
 module.exports = router;

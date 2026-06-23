@@ -17,7 +17,6 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    // Dùng để liên kết với ID gốc của Amazon (ví dụ: AUITG1DJ3QUGK) trong file AI Parquet
     amazon_id: {
         type: String,
         default: null,
@@ -30,8 +29,6 @@ const UserSchema = new mongoose.Schema({
         enum: [0, 1, 2] 
     },
     name: { type: String },
-    
-    // --- THÊM 2 TRƯỜNG MỚI DƯỚI ĐÂY ---
     phone: { 
         type: String, 
         default: '' 
@@ -39,9 +36,27 @@ const UserSchema = new mongoose.Schema({
     address: { 
         type: String, 
         default: '' 
+    },
+
+    preferences: { 
+    type: [String], // Lưu tên hoặc ID các danh mục (VD: ['Laptop', 'Điện thoại', 'Phụ kiện'])
+    default: [] 
+    },
+    
+    // 🌟 THÊM 2 TRƯỜNG NÀY CHO NGHIỆP VỤ TÀI CHÍNH
+    walletBalance: { 
+        type: Number, 
+        default: 0 // Dùng để lưu tiền chờ rút của Seller
+    },
+    bankInfo: {
+        bankName: { type: String, default: '' },
+        accountNumber: { type: String, default: '' },
+        accountName: { type: String, default: '' }
     }
+
+    
 }, { 
-    timestamps: true // Tự động tạo createdAt và updatedAt
+    timestamps: true 
 });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLogin } from '../hooks/useLogin';
+import { Link } from 'react-router-dom';
 
 const Login = () => {
     const { username, setUsername, password, setPassword, error, loading, handleLogin } = useLogin();
@@ -60,6 +61,12 @@ const Login = () => {
                     </button>
                 </form>
 
+                <div className="mt-6 text-center text-sm font-medium text-slate-600">
+                    Chưa có tài khoản?{' '}
+                    <Link to="/register" className="text-sky-600 hover:text-sky-700 font-bold underline transition-colors">
+                        Đăng ký ngay
+                    </Link>
+                </div>  
             </div>
         </div>
     );

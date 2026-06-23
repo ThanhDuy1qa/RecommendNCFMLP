@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // 🌟 ĐÃ SỬA: Thêm useEffect vào đây
 import { Link } from 'react-router-dom';
 import { useUserProfile } from '../hooks/useUserProfile';
+import DepositModal from '../components/DepositModal';
+import WithdrawModal from '../components/WithdrawModal';
 
 const UserProfile = () => {
-  // Lấy toàn bộ dữ liệu và hàm xử lý từ Custom Hook
   const {
     user,
     name, setName,
@@ -16,11 +17,14 @@ const UserProfile = () => {
     address, setAddress
   } = useUserProfile();
 
-  // STATE Quản lý ẩn/hiện form đổi mật khẩu và đổi email
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [newEmail, setNewEmail] = useState('');
-  const [isRequestingEmail, setIsRequestingEmail] = useState(false); // Thêm state loading khi gửi mail
+  const [isRequestingEmail, setIsRequestingEmail] = useState(false); 
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+
+  const [liveBalance, setLiveBalance] = useState(0);
 
   const handleRequestEmailChange = async () => {
     if (!newEmail || !newEmail.includes('@')) {
@@ -44,7 +48,7 @@ const UserProfile = () => {
       if (response.ok) {
         alert(data.message || "Đã gửi link xác nhận vào email mới. Vui lòng kiểm tra hộp thư!");
         setShowEmailModal(false);
-        setNewEmail(''); // Reset form
+        setNewEmail(''); 
       } else {
         alert(data.message || "Có lỗi xảy ra khi yêu cầu đổi email.");
       }
@@ -55,44 +59,93 @@ const UserProfile = () => {
     }
   };
 
+  // 🌟 ĐOẠN CODE LẤY SỐ DƯ REAL-TIME
+  useEffect(() => {
+    if (user) {
+      setLiveBalance(user.walletBalance || 0); // Gán số dư ban đầu
+      
+      const fetchBalance = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch('http://localhost:5000/api/users/wallet-balance', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setLiveBalance(data.balance); // Cập nhật số dư mới mỗi 3s
+          }
+        } catch (error) {
+          // Bỏ qua lỗi mạng để không làm phiền người dùng
+        }
+      };
+      fetchBalance();
+      const interval = setInterval(fetchBalance, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   return (
     <div className="bg-sky-200 min-h-screen p-4 md:p-8 text-slate-800 flex justify-center items-start">
-      <div className="w-full max-w-4xl space-y-8 mt-4 md:mt-10">
+      <div className="w-full max-w-4xl space-y-6 mt-4 md:mt-10">
         
-        {/* TIÊU ĐỀ & AVATAR + CỤM NÚT LỊCH SỬ KHÔNG BỊ RỜI RẠC */}
+        {/* TẦNG 1: TIÊU ĐỀ & AVATAR & CÁC NÚT LỊCH SỬ NHỎ */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-sky-300 pb-6">
           <div className="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
             <div className="w-16 h-16 bg-white border border-sky-300 rounded-full flex items-center justify-center text-3xl shadow-sm shrink-0">
               😎
             </div>
             <div>
-              <h1 className="text-3xl font-black text-sky-800">
-                Hồ Sơ Cá Nhân
-              </h1>
+              <h1 className="text-3xl font-black text-sky-800">Hồ Sơ Cá Nhân</h1>
               <p className="text-sm font-medium text-slate-600 mt-1">Quản lý thông tin và bảo mật tài khoản</p>
             </div>
           </div>
 
-          {/* 🕒 CỤM NÚT XEM LỊCH SỬ MỚI */}
-          <div className="flex flex-wrap justify-center gap-3 w-full md:w-auto">
+          <div className="flex justify-center gap-3 w-full md:w-auto">
             <Link 
               to="/interaction-history" 
-              className="bg-white hover:bg-sky-50 border border-sky-300 text-sky-700 px-4 py-2 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm shrink-0"
+              className="bg-white hover:bg-sky-50 border border-sky-300 text-sky-700 px-4 py-2 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm"
             >
-              <span>💬</span> Lịch Sử Đánh Giá
+              <span>💬</span> Đánh Giá
             </Link>
 
             <Link 
               to="/order-history" 
-              className="bg-white hover:bg-sky-50 border border-sky-300 text-sky-700 px-4 py-2 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm shrink-0"
+              className="bg-white hover:bg-sky-50 border border-sky-300 text-sky-700 px-4 py-2 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 text-sm"
             >
-              <span>🧾</span> Lịch Sử Mua Hàng
+              <span>🧾</span> Lịch Sử Mua
             </Link>
           </div>
         </div>
 
-        {/* KHU VỰC CHỨA 2 KHỐI FORM */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* 🌟 TẦNG 2: THẺ VÍ TIỀN */}
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-400 p-6 md:p-8 rounded-3xl shadow-lg text-white flex flex-col md:flex-row items-center justify-between gap-6 transform hover:scale-[1.01] transition-transform w-full">
+          <div className="text-center md:text-left">
+            <h2 className="text-xl md:text-2xl font-bold opacity-90 mb-1 flex items-center justify-center md:justify-start gap-2">
+              💳 Số Dư Ví Của Bạn
+            </h2>
+            <div className="text-4xl md:text-5xl font-black tracking-tight mt-2">
+              {liveBalance.toLocaleString('vi-VN')} <span className="text-2xl md:text-3xl font-bold opacity-80">VNĐ</span>
+            </div>
+            <p className="text-sm opacity-90 mt-2 font-medium">Sử dụng ví để thanh toán đơn hàng ngay lập tức mà không cần chờ đợi.</p>
+          </div>
+          
+          <button
+           onClick={() => setIsDepositOpen(true)}
+           className="bg-white text-emerald-600 hover:bg-emerald-50 px-6 py-3 rounded-xl font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+         >
+           ➕ Nạp Thêm Tiền
+         </button>
+         <button
+           onClick={() => setIsWithdrawOpen(true)}
+           className="bg-teal-700/30 border border-teal-300 hover:bg-teal-700/50 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+         >
+           💸 Rút Tiền
+         </button>
+
+        </div>
+
+        {/* TẦNG 3: KHU VỰC CHỨA 2 KHỐI FORM */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
           
           {/* KHỐI 1: THÔNG TIN CÁ NHÂN */}
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-sky-200 shadow-sm h-fit">
@@ -134,7 +187,6 @@ const UserProfile = () => {
                 />
               </div>
 
-              {/* 🌟 ĐÃ SỬA KHU VỰC EMAIL 🌟 */}
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="block text-sm font-bold text-slate-600">Email đăng nhập</label>
@@ -257,9 +309,9 @@ const UserProfile = () => {
         </div>
       </div>
 
-      {/* 🌟 MODAL NHẬP EMAIL MỚI */}
+      {/* MODAL NHẬP EMAIL MỚI */}
       {showEmailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white p-8 rounded-3xl w-full max-w-sm border border-sky-200 shadow-2xl">
             <h3 className="text-xl font-black text-slate-800 mb-4">Đổi Email Đăng Nhập</h3>
             <p className="text-sm text-slate-500 mb-6">
@@ -297,6 +349,19 @@ const UserProfile = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL NẠP TIỀN */}
+      <DepositModal 
+        isOpen={isDepositOpen} 
+        onClose={() => setIsDepositOpen(false)} 
+        user={user} 
+      />
+
+      <WithdrawModal 
+     isOpen={isWithdrawOpen} 
+     onClose={() => setIsWithdrawOpen(false)} 
+     user={user} 
+   />
     </div>
   );
 };

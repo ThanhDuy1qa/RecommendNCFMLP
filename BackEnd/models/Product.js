@@ -15,7 +15,17 @@ const productSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User',
         default: null
-    }
+    },
+    status: { 
+    type: String, 
+    enum: ['Đang khảo sát', 'Đang bán', 'Ngừng kinh doanh'], 
+    default: 'Đang bán' 
+},
+surveyStats: {
+    totalResponses: { type: Number, default: 0 },
+    positiveResponses: { type: Number, default: 0 }
+}
+    
 }, { collection: 'Products' }); 
 
 module.exports = mongoose.model('Product', productSchema);

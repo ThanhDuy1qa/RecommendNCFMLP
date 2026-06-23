@@ -2,7 +2,7 @@ import { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext'; 
 
 export const useUserProfile = () => {
-  // 1. ĐÃ SỬA: Lấy thêm hàm setUser từ AuthContext
+  // 1. Lấy user và token từ hệ thống đăng nhập
   const { user, setUser, token } = useContext(AuthContext);
 
   // --- STATE FORM ĐỔI TÊN ---
@@ -19,16 +19,16 @@ export const useUserProfile = () => {
   });
   const [isUpdatingPass, setIsUpdatingPass] = useState(false);
 
-  // Gắn tên hiện tại vào ô input khi load trang
+  // Gắn thông tin hiện tại vào ô input khi load trang
   useEffect(() => {
-    if (user?.name) {
+    if (user) {
       setName(user.name || '');
       setPhone(user.phone || '');       
       setAddress(user.address || '');
     }
   }, [user]);
 
-  // LUỒNG 1: XỬ LÝ ĐỔI TÊN
+  // LUỒNG 1: XỬ LÝ ĐỔI TÊN VÀ THÔNG TIN
   const handleUpdateName = async (e) => {
     e.preventDefault();
     if (!name.trim()) return alert("Tên không được để trống!");
@@ -48,14 +48,10 @@ export const useUserProfile = () => {
       if (res.ok) {
         alert("✅ " + data.message);
         
-        // Cập nhật thông tin bằng object 'data.user' từ Backend trả về (bao gồm id, name, email, role)
-        // Dùng spread operator để giữ lại các trường cũ (như token, username) nếu có
+        // Cập nhật thông tin vào Local Storage để không bị mất khi F5
         const updatedUser = { ...user, ...data.user }; 
-        
         localStorage.setItem('user', JSON.stringify(updatedUser)); 
         setUser(updatedUser);
-        
-        // (Đã xóa dòng window.location.reload() để web chạy mượt mà)
       } else {
         alert("❌ " + data.message);
       }
@@ -104,6 +100,7 @@ export const useUserProfile = () => {
     }
   };
 
+  // 🌟 TRẢ CÁC BIẾN VÀ HÀM RA NGOÀI CHO TRANG PROFILE DÙNG
   return {
     user,
     name, setName,
@@ -112,6 +109,7 @@ export const useUserProfile = () => {
     isUpdatingPass,
     handleUpdateName,
     handleUpdatePassword,
-    phone, setPhone, address, setAddress
+    phone, setPhone, 
+    address, setAddress
   };
 };

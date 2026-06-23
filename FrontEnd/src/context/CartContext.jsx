@@ -1,18 +1,16 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { AuthContext } from './AuthContext'; // Kết nối với hệ thống Đăng nhập
+import { AuthContext } from './AuthContext'; 
 import { useNavigate } from 'react-router-dom';
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  // Lấy token chuẩn xác nhất từ AuthContext
   const { token } = useContext(AuthContext); 
   const navigate = useNavigate();
 
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Tải dữ liệu giỏ hàng ngay khi mở web hoặc khi token thay đổi
   useEffect(() => {
     if (token) {
       fetch('http://localhost:5000/api/cart', {
@@ -21,7 +19,7 @@ export const CartProvider = ({ children }) => {
       .then(res => res.json())
       .then(data => { 
         const items = Array.isArray(data) ? data : (data.items || []);
-        setCartItems([...items]); // BÍ QUYẾT: Tạo mảng mới ép Header re-render
+        setCartItems([...items]); 
       })
       .catch(err => console.error("Lỗi lấy giỏ hàng:", err));
     } else {
@@ -30,14 +28,8 @@ export const CartProvider = ({ children }) => {
     }
   }, [token]);
 
-  // Đồng bộ giỏ hàng vãng lai vào máy tính
-  useEffect(() => {
-    if (!token) {
-      localStorage.setItem('cart_guest', JSON.stringify(cartItems));
-    }
-  }, [cartItems, token]);
+  // 🌟 ĐÃ XÓA: Hàm useEffect tự động lưu (Thủ phạm gây lỗi nhân đôi)
 
-  // LUỒNG 1: THÊM VÀO GIỎ
   const addToCart = async (product) => {
     const formatted = {
       asin: product.asin || product.item_id,
@@ -62,7 +54,7 @@ export const CartProvider = ({ children }) => {
         }
         
         const newItems = Array.isArray(data) ? data : (data.items || []);
-        setCartItems([...newItems]); // BÍ QUYẾT: Clone mảng mới
+        setCartItems([...newItems]); 
         alert("🛒 Đã thêm vào giỏ hàng!");
       } catch (error) {
         alert("❌ Lỗi kết nối đến Server!");
@@ -73,13 +65,15 @@ export const CartProvider = ({ children }) => {
         const newCart = existing 
           ? prev.map(item => item.asin === formatted.asin ? { ...item, quantity: item.quantity + 1 } : item)
           : [...prev, formatted];
-        return [...newCart]; // BÍ QUYẾT: Clone mảng mới
+        
+        // 🌟 SỬA Ở ĐÂY: Lưu trực tiếp vào bộ nhớ khi khách bấm thêm
+        localStorage.setItem('cart_guest', JSON.stringify(newCart));
+        return [...newCart]; 
       });
       alert("🛒 Đã thêm vào giỏ hàng tạm!");
     }
   };
 
-  // LUỒNG 2: XÓA KHỎI GIỎ
   const removeFromCart = async (asin) => {
     if (token) {
       try {
@@ -92,80 +86,101 @@ export const CartProvider = ({ children }) => {
         setCartItems([...newItems]);
       } catch(err) { console.error(err); }
     } else {
-      setCartItems(prev => prev.filter(item => item.asin !== asin));
+      setCartItems(prev => {
+        // 🌟 SỬA Ở ĐÂY: Cập nhật lại bộ nhớ khi khách bấm xóa
+        const newCart = prev.filter(item => item.asin !== asin);
+        localStorage.setItem('cart_guest', JSON.stringify(newCart));
+        return newCart;
+      });
     }
   };
 
-
-  // LUỒNG 3: THANH TOÁN (Nâng cấp nhận thêm địa chỉ)
-  const handleCheckout = async (selectedItemsToCheckout, totalAmount, shippingInfo, paymentMethod) => {
+  // 🌟 SỬA DÒNG NÀY: Phải thêm chữ paymentMode vào trong ngoặc đơn
+  // 🌟 THAY THẾ TOÀN BỘ HÀM NÀY TRONG CartContext.js
+  const handleCheckout = async (selectedItemsToCheckout, totalAmount, shippingInfo, paymentMethod, paymentMode) => {
     if (!token) {
         alert("Vui lòng đăng nhập để thanh toán!");
-        return navigate('/login');
+        navigate('/login');
+        return null; 
     }
     setLoading(true);
     try {
       const res = await fetch('http://localhost:5000/api/orders/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        // Gửi đầy đủ thông tin xuống Server
         body: JSON.stringify({ 
           items: selectedItemsToCheckout, 
           totalAmount, 
           shippingInfo, 
-          paymentMethod 
+          paymentMethod,
+          paymentMode // Biến này giữ nguyên
         }) 
       });
 
       if (res.ok) {
-        // Loại bỏ những món đã thanh toán ra khỏi giỏ
+        const data = await res.json();
+        
+        // Cập nhật lại giỏ hàng (Xóa các món đã mua)
         const remainingItems = cartItems.filter(item => !selectedItemsToCheckout.find(sel => sel.asin === item.asin));
         setCartItems(remainingItems);
         
-        // Cập nhật lại giỏ hàng trên DB
-        await fetch('http://localhost:5000/api/cart/sync', {
-            method: 'POST',
+        await fetch('http://localhost:5000/api/cart/replace', {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ localItems: remainingItems }) 
+            body: JSON.stringify({ items: remainingItems }) 
         });
-
-        alert("🎉 Đặt hàng thành công! Đơn hàng của bạn đang được xử lý.");
-        navigate('/order-history');
+        
+        // 🌟 FIX LỖI TẠI ĐÂY: Trả về nguyên vẹn cục data để giữ lại mác `success: true`
+        return data; 
       } else {
-        alert("❌ Có lỗi xảy ra khi tạo đơn hàng!");
+        // Trả về lỗi từ Backend (Ví dụ: Số dư không đủ) để CheckoutPage tự hiển thị
+        const errData = await res.json();
+        return { success: false, message: errData.message || "Có lỗi xảy ra khi tạo đơn hàng!" };
       }
     } catch (error) {
-      alert("❌ Lỗi kết nối đến Server!");
+      console.error("Lỗi gửi dữ liệu Checkout:", error);
+      // Trả về lỗi rớt mạng
+      return { success: false, message: "Lỗi kết nối đến Server!" };
     } finally {
       setLoading(false);
     }
   };
 
-  // LUỒNG MỚI: TĂNG GIẢM SỐ LƯỢNG
   const updateQuantity = async (asin, newQuantity) => {
-    if (newQuantity < 1) return; // Không cho giảm dưới 1
+    if (newQuantity < 1) return; 
 
     if (token) {
-      // Nếu đã đăng nhập: Tạm thời update ở máy tính trước cho mượt (Optimistic Update)
+      // 1. Cập nhật state local ngay lập tức cho mượt (Optimistic Update)
       setCartItems(prev => prev.map(item => 
         item.asin === asin ? { ...item, quantity: newQuantity } : item
       ));
       
-      // Bắn API ngầm lên Server để đồng bộ
+      // 2. Bắn API gọi route '/update' ở Backend
       try {
-        await fetch(`http://localhost:5000/api/cart/add`, {
-          // Lưu ý: Tùy Backend của bạn, nếu bạn có route /update thì gọi, 
-          // Không thì chúng ta có thể lợi dụng nút Sync hoặc để lúc checkout gửi mảng mới.
-          // Để an toàn nhất, cứ cập nhật state local, lúc checkout mảng items gửi đi sẽ mang số lượng mới nhất!
+        await fetch(`http://localhost:5000/api/cart/update`, {
+          method: 'PUT', // Phải dùng PUT vì ở route khai báo router.put('/update', ...)
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Truyền vé (token) để verifyToken cho qua
+          },
+          body: JSON.stringify({ 
+            asin: asin, 
+            quantity: newQuantity 
+          }) 
         });
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error("Lỗi đồng bộ số lượng:", err); 
+      }
     } else {
-      // Nếu chưa đăng nhập: Cập nhật local
-      setCartItems(prev => prev.map(item => 
-        item.asin === asin ? { ...item, quantity: newQuantity } : item
-      ));
+      setCartItems(prev => {
+        // 🌟 Lưu lại số lượng khi khách chưa đăng nhập bấm (+/-)
+        const newCart = prev.map(item => item.asin === asin ? { ...item, quantity: newQuantity } : item);
+        localStorage.setItem('cart_guest', JSON.stringify(newCart));
+        return newCart;
+      });
     }
   };
+
   const totalAmount = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   return (

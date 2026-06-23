@@ -63,8 +63,8 @@ const AdminOrders = () => {
               <option value="">🛒 Tất cả trạng thái</option>
               <option value="Chờ xác nhận">⏳ Chờ xác nhận</option>
               <option value="Đang xử lý">📦 Đang xử lý</option>
-              <option value="Đang giao">🚚 Đang giao</option>
-              <option value="Đã giao">✅ Đã giao</option>
+              <option value="Đang giao hàng">🚚 Đang giao hàng</option>
+              <option value="Hoàn thành">✅ Hoàn thành</option>
               <option value="Đã hủy">❌ Đã hủy</option>
             </select>
 
@@ -75,8 +75,7 @@ const AdminOrders = () => {
             >
               <option value="">💳 Tất cả thanh toán</option>
               <option value="COD">COD (Tiền mặt)</option>
-              <option value="Chuyển khoản">Chuyển khoản</option>
-              <option value="Thẻ tín dụng">Thẻ tín dụng</option>
+              <option value="WALLET">Thanh toán bằng Ví</option>
             </select>
           </div>
 

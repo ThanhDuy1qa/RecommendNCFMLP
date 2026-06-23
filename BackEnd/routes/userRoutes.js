@@ -19,6 +19,7 @@ const verifyAdminOnly = (req, res, next) => {
   });
 };
 
+router.get('/wallet-balance', verifyToken, userController.getWalletBalance);
 // ===============================
 // USER PROFILE
 // ===============================
@@ -28,6 +29,7 @@ router.put('/profile', verifyToken, userController.updateProfile);
 
 // Đổi mật khẩu
 router.put('/change-password', verifyToken, userController.changePassword);
+router.put('/preferences', verifyToken, userController.savePreferences);
 
 // ===============================
 // ADMIN - QUẢN LÝ NGƯỜI DÙNG

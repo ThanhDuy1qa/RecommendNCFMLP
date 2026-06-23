@@ -3,6 +3,10 @@ const Recommendation = require('../models/Recommendation');
 const User = require('../models/User');
 const SmartCatalog = require('../models/SmartCatalog');
 const Review = require('../models/Review');
+const Order = require('../models/Order'); 
+const { transporter } = require('./emailController');
+const axios = require('axios');
+const nodemailer = require('nodemailer');
 const cloudinary = require('cloudinary').v2;
 // =======================================================
 // HÀM BỔ TRỢ: CHUẨN HÓA GIÁ TIỀN
@@ -30,6 +34,9 @@ const getPublicIdFromUrl = (url) => {
         return null;
     }
 };
+const escapeRegex = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
 // =======================================================
 // 1. PUBLIC / CUSTOMER FUNCTIONS
 // Các hàm dùng cho khách hàng hoặc trang công khai
@@ -53,13 +60,13 @@ const getProducts = async (req, res) => {
             if (search.length === 10 && !search.includes(' ')) {
                 query.asin = search;
             } else {
-                query.title = { $regex: search, $options: 'i' };
+                // 🌟 BẢO MẬT: Làm sạch từ khóa trước khi tìm kiếm
+                query.title = { $regex: escapeRegex(search), $options: 'i' };
             }
         }
 
         if (category) {
             let safeName = category.replace(/&amp;/g, '&').trim();
-            safeName = safeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
             const regexPattern = `^\\s*${safeName.replace(/\s*&\s*/g, '\\s*.*\\s*')}\\s*$`;
 
@@ -135,10 +142,13 @@ const getSearchSuggestions = async (req, res) => {
             return res.json([]);
         }
 
+        // 🌟 BẢO MẬT: Làm sạch từ khóa trước khi đưa vào Regex
+        const safeKeyword = escapeRegex(keyword);
+
         const query = {
             $or: [
-                { title: { $regex: keyword, $options: 'i' } },
-                { asin: { $regex: keyword, $options: 'i' } }
+                { title: { $regex: safeKeyword, $options: 'i' } },
+                { asin: { $regex: safeKeyword, $options: 'i' } }
             ]
         };
 
@@ -707,6 +717,87 @@ const getScenarioSummary = async (req, res) => {
     }
 };
 
+
+
+const createProductAndSurvey = async (req, res) => {
+    try {
+        const { title, brand, category, description, price } = req.body;
+
+        // 1. Lưu sản phẩm vào DB với trạng thái Đang Khảo Sát
+        const newProduct = await Product.create({
+            title, brand, category, description, price,
+            status: 'Đang khảo sát',
+            stock: 0 
+        });
+
+        // 2. Gọi API Python
+        const aiResponse = await axios.post('http://localhost:8000/predict_cold_start', {
+            product_id: newProduct._id.toString(),
+            title, brand, category, description, price
+        });
+
+        const { similar_items, business_summary } = aiResponse.data;
+
+        // 3. LOGIC TÌM USER TIỀM NĂNG TỪ DANH SÁCH ASIN CŨ
+        const targetAsins = similar_items.map(item => item.asin);
+        
+        // Tìm các đơn hàng đã từng mua các sản phẩm giống với sản phẩm mới
+        const relatedOrders = await Order.find({ 'items.asin': { $in: targetAsins } });
+        
+        // Lấy ra danh sách UserID không trùng lặp
+        const userIds = [...new Set(relatedOrders.map(order => order.userId.toString()))];
+
+        // Nếu hệ thống test chưa có nhiều đơn hàng, LẤY TẠM 10 USER BẤT KỲ để test Đồ án
+        let finalUsersToSurvey = userIds;
+        if (finalUsersToSurvey.length === 0) {
+            const randomUsers = await User.find({ role: 0 }).limit(10);
+            finalUsersToSurvey = randomUsers.map(u => u._id.toString());
+        }
+
+        // 4. GỬI EMAIL
+        // ⚠️ THAY CÁC LINK VÀ ENTRY ID CỦA BẠN VÀO ĐÂY
+        const FORM_BASE_URL = "https://docs.google.com/forms/d/e/1FAIpQLSei5NONE-B-qp7gieotlF2Uf4yUDzf23eZ8W7XLt0a-ccoYLg/viewform";
+        const ENTRY_USER_ID = "entry.1153674438"; // Mã ô tương ứng với số 1111 (User ID)
+        const ENTRY_PROD_ID = "entry.1266707340";
+
+        for (let userId of finalUsersToSurvey) {
+            const userInfo = await User.findById(userId);
+            if (!userInfo || !userInfo.email) continue;
+
+            const prefilledLink = `${FORM_BASE_URL}?${ENTRY_USER_ID}=${userInfo._id}&${ENTRY_PROD_ID}=${newProduct._id}`;
+
+            await transporter.sendMail({
+                from: '"Kho Điện Tử" <no-reply@khodientu.com>',
+                to: userInfo.email,
+                subject: 'Sản phẩm mới thiết kế riêng cho bạn!',
+                html: `
+                    <div style="font-family: Arial; padding: 20px; background: #f0f9ff; border-radius: 8px;">
+                        <h2 style="color: #0284c7;">Chào ${userInfo.name || userInfo.username},</h2>
+                        <p>Dựa trên sở thích mua sắm của bạn, chúng tôi chuẩn bị ra mắt: <b>${title}</b>.</p>
+                        <p>Bạn có hứng thú với sản phẩm này với mức giá <b>${price}$</b> không?</p>
+                        <div style="margin: 30px 0; text-align: center;">
+                            <a href="${prefilledLink}" style="padding:12px 24px; background: #0284c7; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                Điền Khảo Sát Nhanh
+                            </a>
+                        </div>
+                        <p style="font-size: 12px; color: #64748b;">(Hệ thống AI đã tự động phân tích độ phù hợp của bạn với sản phẩm này).</p>
+                    </div>
+                `
+            });
+        }
+
+        res.json({ 
+            message: 'Đã lưu sản phẩm và gửi email khảo sát thành công!', 
+            ai_summary: business_summary,
+            usersMailed: finalUsersToSurvey.length
+        });
+
+    } catch (error) {
+        console.error("Lỗi:", error);
+        res.status(500).json({ message: 'Lỗi server khi phân tích AI' });
+    }
+};
+
 // =======================================================
 // 6. EXPORT CONTROLLER FUNCTIONS
 // Xuất các hàm để route sử dụng
@@ -732,5 +823,7 @@ module.exports = {
     // Admin
 
     // Smart Catalog
-    getScenarioSummary
+    getScenarioSummary,
+    // Survey
+    createProductAndSurvey
 };

@@ -1,14 +1,21 @@
 import React from 'react';
 import defaultIcon from '../assets/no-image.png';
 
+// 🌟 1. ĐÃ ĐỒNG BỘ MÀU SẮC GIỐNG VỚI ORDER HISTORY
 const statusColors = {
-  'Chờ xác nhận': 'bg-amber-50 text-amber-700 border-amber-200',
-  'Đang chuẩn bị hàng': 'bg-orange-50 text-orange-700 border-orange-200',
-  'Đang giao hàng': 'bg-blue-50 text-blue-700 border-blue-200',
-  'Hoàn thành': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Đã hủy': 'bg-rose-50 text-rose-700 border-rose-200'
+  'Chờ xác nhận': 'bg-slate-100 text-slate-600 border-slate-300',
+  'Đang xử lý': 'bg-sky-100 text-sky-700 border-sky-400 font-black',
+  'Đang giao hàng': 'bg-indigo-100 text-indigo-700 border-indigo-300',
+  'Hoàn thành': 'bg-emerald-100 text-emerald-700 border-emerald-400 font-black',
+  'Đã hủy': 'bg-red-50 text-red-500 border-red-200 line-through',
+  'Thanh toán thiếu': 'bg-rose-100 text-rose-700 border-rose-500 font-black animate-pulse',
+  'Thanh toán thừa': 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-400 font-black'
 };
-const statusOptions = Object.keys(statusColors);
+
+// 🌟 2. TÁCH RIÊNG OPTIONS ĐỂ ADMIN KHÔNG TỰ CHỌN "THANH TOÁN THIẾU" ĐƯỢC
+const statusOptions = [
+  'Chờ xác nhận', 'Đang xử lý', 'Đang giao hàng', 'Hoàn thành', 'Đã hủy'
+];
 
 const OrderCard = ({ order, role, onUpdateStatus }) => {
   return (
@@ -20,7 +27,6 @@ const OrderCard = ({ order, role, onUpdateStatus }) => {
           <span className="text-xs text-slate-500 font-mono bg-slate-50 px-2 py-1 rounded border border-slate-200">ID: {order._id}</span>
         </div>
         
-        {/* 🌟 ĐÃ SỬA: Dùng shippingInfo và thêm dòng hiển thị Email */}
         <h3 className="text-lg font-bold text-slate-800 mb-2">{order.shippingInfo?.fullName || 'Khách hàng'}</h3>
         <p className="text-sm text-slate-600 mb-1 flex items-center gap-2"><span>✉️</span> {order.userId?.email || 'Chưa cập nhật email'}</p>
         <p className="text-sm text-slate-600 mb-1 flex items-center gap-2"><span>📞</span> {order.shippingInfo?.phone || 'Chưa cập nhật SĐT'}</p>
@@ -75,9 +81,38 @@ const OrderCard = ({ order, role, onUpdateStatus }) => {
               disabled={role === 'seller' && (order.status === 'Đã hủy' || order.status === 'Hoàn thành')} 
               className="bg-white border border-slate-300 text-slate-800 text-sm font-medium rounded-lg focus:ring-sky-500 focus:border-sky-500 block p-2 outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
-              {statusOptions.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
+              {!statusOptions.includes(order.status) && (
+                <option value={order.status} disabled>⚠️ {order.status}</option>
+              )}
+
+              {/* 🌟 ẨN CÁC TRẠNG THÁI KHÔNG CHO PHÉP SELLER/ADMIN CHỌN */}
+              {statusOptions.map(status => {
+                // 1. Ẩn "Chờ xác nhận" nếu đã qua mốc này (cho cả Seller)
+                if (role !== 'admin' && status === 'Chờ xác nhận') {
+                  if (order.status !== 'Chờ xác nhận') {
+                    return null; 
+                  }
+                }
+
+                // 🌟 2. ẨN "HOÀN THÀNH" ĐỐI VỚI SELLER
+                if (role === 'seller' && status === 'Hoàn thành') {
+                  // Vẫn giữ lại option này CHỈ KHI bản thân đơn hàng ĐÃ LÀ Hoàn thành
+                  // (Để khung <select> hiển thị đúng chữ Hoàn thành chứ không bị rỗng)
+                  // Nếu đơn hàng chưa Hoàn thành thì ẩn option này đi để Seller không bấm được
+                  if (order.status !== 'Hoàn thành') {
+                    return null;
+                  }
+                }
+                
+                return (
+                  <option 
+                    key={status} 
+                    value={status} 
+                  >
+                    {status}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>

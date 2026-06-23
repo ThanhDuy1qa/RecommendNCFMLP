@@ -123,7 +123,37 @@ const changePassword = async (req, res) => {
     });
   }
 };
+const getWalletBalance = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy user' });
+    
+    // Trả về đúng object có key là 'balance'
+    res.json({ balance: user.walletBalance || 0 });
+  } catch (error) {
+    console.error("Lỗi getWalletBalance:", error);
+    res.status(500).json({ message: 'Lỗi Server' });
+  }
+};
 
+// Trong file userController.js
+const savePreferences = async (req, res) => {
+    try {
+        const { preferences } = req.body; // Mảng các danh mục
+        
+        if (!Array.isArray(preferences) || preferences.length === 0) {
+            return res.status(400).json({ message: 'Vui lòng chọn ít nhất 1 danh mục!' });
+        }
+
+        await User.findByIdAndUpdate(req.user.id, { preferences }, { new: true });
+
+        res.json({ success: true, message: 'Đã lưu sở thích, chuẩn bị trải nghiệm!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server khi lưu sở thích' });
+    }
+};
+// Nhớ export và thêm vào userRoutes.js: router.put('/preferences', verifyToken, savePreferences);
+// Nhớ export và thêm vào userRoutes.js: router.put('/preferences', verifyToken, savePreferences);
 // =======================================================
 // 2. ADMIN USER MANAGEMENT FUNCTIONS
 // Các hàm dành riêng cho admin role 2
@@ -337,6 +367,8 @@ module.exports = {
   // User profile
   updateProfile,
   changePassword,
+  getWalletBalance,
+  savePreferences,
 
   // Admin user management
   getAllUsers,

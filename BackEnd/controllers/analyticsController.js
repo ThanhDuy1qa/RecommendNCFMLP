@@ -775,6 +775,10 @@ const getSmartCatalog = async (req, res) => {
 /**
  * Lấy dữ liệu dashboard quản trị AI.
  */
+
+let cachedGlobalTopProducts = null;
+let lastTopProductsCacheTime = 0;
+
 const getAiDashboardData = async (req, res) => {
     try {
         // 1. ĐỌC THAM SỐ TÌM KIẾM VÀ PHÂN TRANG TỪ PHÍA FRONTEND QUY ĐỊNH
@@ -869,33 +873,45 @@ const getAiDashboardData = async (req, res) => {
             .sort((a, b) => (b.score || 0) - (a.score || 0));
 
         // 🌟 BƯỚC SỬA LỖI: TÍNH TOÁN TOP 50 SẢN PHẨM ĐƯỢC GỢI Ý TOÀN HỆ THỐNG
-        const topRecsAggregate = await Recommendation.aggregate([
-            { $group: { _id: '$item_id', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 50 } // Chỉ lấy Top 50 để tránh nặng Web
-        ]);
-        
-        // Truy xuất thông tin ảnh, tên sản phẩm để đắp vào
-        const topRecItemIds = topRecsAggregate.map(r => r._id);
-        const topRecProducts = await Product.find({ item_id: { $in: topRecItemIds } })
-            .select('item_id asin title image_url_high image_url')
-            .lean();
+        let globalTopProducts = [];
+        const CACHE_TTL = 1000 * 60 * 30; // Lưu cache trong 30 phút
 
-        const globalTopProducts = topRecsAggregate.map(rec => {
-            const prod = topRecProducts.find(p => Number(p.item_id) === Number(rec._id));
-            return {
-                asin: prod?.asin || 'N/A',
-                title: prod?.title || `Sản phẩm AI phân tích (ID: ${rec._id})`,
-                image: prod?.image_url_high || prod?.image_url || null,
-                count: rec.count // Trả về số Hits khổng lồ thật sự
-            };
-        });
+        // Nếu đã có cache và chưa hết hạn 30 phút -> Lấy ra xài luôn (Tốc độ 0.001s)
+        if (cachedGlobalTopProducts && (Date.now() - lastTopProductsCacheTime < CACHE_TTL)) {
+            globalTopProducts = cachedGlobalTopProducts;
+        } else {
+            // Nếu chưa có cache -> Mới bắt đầu bắt Database tính toán
+            const topRecsAggregate = await Recommendation.aggregate([
+                { $group: { _id: '$item_id', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 50 } 
+            ]);
+            
+            const topRecItemIds = topRecsAggregate.map(r => r._id);
+            const topRecProducts = await Product.find({ item_id: { $in: topRecItemIds } })
+                .select('item_id asin title image_url_high image_url')
+                .lean();
+
+            globalTopProducts = topRecsAggregate.map(rec => {
+                const prod = topRecProducts.find(p => Number(p.item_id) === Number(rec._id));
+                return {
+                    asin: prod?.asin || 'N/A',
+                    title: prod?.title || `Sản phẩm AI phân tích (ID: ${rec._id})`,
+                    image: prod?.image_url_high || prod?.image_url || null,
+                    count: rec.count 
+                };
+            });
+
+            // 🌟 Lưu lại vào biến Cache để các lần chuyển trang sau không phải tính lại
+            cachedGlobalTopProducts = globalTopProducts;
+            lastTopProductsCacheTime = Date.now();
+        }
 
         // 5. KẾT XUẤT PHẢN HỒI HOÀN CHỈNH
         res.json({
             userAnalytics,
             scenariosSummary,
-            globalTopProducts, // 🌟 TRUYỀN THÊM BIẾN NÀY XUỐNG FRONTEND
+            globalTopProducts, // 🌟 TRUYỀN BIẾN ĐÃ ĐƯỢC TỐI ƯU XUỐNG FRONTEND
             
             ablation_summary: rawAblation,
             final_report: compactData.final_report || baseData.final_report || {},
