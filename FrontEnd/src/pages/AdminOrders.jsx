@@ -64,7 +64,7 @@ const AdminOrders = () => {
               <option value="Chờ xác nhận">⏳ Chờ xác nhận</option>
               <option value="Đang xử lý">📦 Đang xử lý</option>
               <option value="Đang giao">🚚 Đang giao</option>
-              <option value="Đã giao">✅ Đã giao</option>
+              <option value="Hoàn thành">✅ Hoàn thành</option>
               <option value="Đã hủy">❌ Đã hủy</option>
             </select>
 

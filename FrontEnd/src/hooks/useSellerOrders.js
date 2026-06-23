@@ -65,6 +65,13 @@ export const useSellerOrders = () => {
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
+    // 🌟 1. KIỂM TRA & CHẶN LÙI TRẠNG THÁI VỀ "CHỜ XÁC NHẬN"
+    const currentOrder = orders.find(o => o._id === orderId);
+    if (currentOrder && currentOrder.status !== 'Chờ xác nhận' && newStatus === 'Chờ xác nhận') {
+      alert("❌ Hành động bị từ chối! Không thể lùi trạng thái về 'Chờ xác nhận' vì đơn hàng đã được thanh toán hoặc xác nhận.");
+      return; // Dừng lại, không cho gọi API
+    }
+
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`http://localhost:5000/api/orders/update-status/${orderId}`, {
@@ -77,7 +84,6 @@ export const useSellerOrders = () => {
       });
 
       if (res.ok) {
-        // Cập nhật State trực tiếp thay vì reload API để UX mượt hơn
         setOrders(prevOrders => 
           prevOrders.map(order => 
             order._id === orderId ? { ...order, status: newStatus } : order

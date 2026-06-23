@@ -58,10 +58,9 @@ const SellerOrders = () => {
               className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-sky-500 shadow-sm lg:w-48 cursor-pointer"
             >
               <option value="">🛒 Tất cả trạng thái</option>
-              <option value="Chờ xác nhận">⏳ Chờ xác nhận</option>
               <option value="Đang xử lý">📦 Đang xử lý</option>
               <option value="Đang giao">🚚 Đang giao</option>
-              <option value="Đã giao">✅ Đã giao</option>
+              <option value="Hoàn thành">✅ Hoàn thành </option>
               <option value="Đã hủy">❌ Đã hủy</option>
             </select>
 

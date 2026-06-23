@@ -33,6 +33,7 @@ import SellerOrders from './pages/SellerOrders';
 import InventoryAdvisor from './pages/InventoryAdvisor';
 import SellerDashboard from './pages/SellerDashboard';
 import TargetedMarketing from './pages/TargetedMarketing';
+import SellerFinance from './pages/SellerFinance';
 // Admin pages
 import AdminDashboard from './pages/AdminDashboard';
 import ManageAllProducts from './pages/ManageAllProducts';
@@ -42,6 +43,7 @@ import AdminAiAnalytics from './pages/AdminAiAnalytics';
 import CustomerInsight from './pages/CustomerInsight';
 import ManageUsers from './pages/ManageUsers';
 import Stats from './pages/Stats';
+import FinanceManagement from './pages/FinanceManagement';
 
 const App = () => {
   return (
@@ -132,6 +134,12 @@ const App = () => {
                   </ProtectedRoute>
                 } />
 
+                <Route path="/seller/finance" element={
+                  <ProtectedRoute allowedRoles={[1, 2]}>
+                    <SellerFinance />
+                  </ProtectedRoute>
+                } />
+
                 {/* =========================================
                     KHU VỰC TỐI CAO CHỈ DÀNH CHO ADMIN (Role 2) 
                     ========================================= */}
@@ -189,6 +197,12 @@ const App = () => {
                 <Route path="/admin/users" element={
                   <ProtectedRoute allowedRoles={[2]}>
                     <ManageUsers />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/admin/finance" element={
+                  <ProtectedRoute allowedRoles={[2]}>
+                    <FinanceManagement />
                   </ProtectedRoute>
                 } />
   

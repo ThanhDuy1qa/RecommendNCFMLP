@@ -39,41 +39,7 @@ const ProductCard = ({ product }) => {
           {product.title}
         </h3>
 
-        {/* 3. KHỐI THÔNG SỐ AI */}
-        {product.hybrid_score !== undefined && (
-          <div className="mb-3 pt-2 border-t border-sky-200">
-            <p className="text-xs text-slate-700 uppercase font-black mb-2 flex items-center gap-1">
-              <span>🤖</span> Phân tích Thuật toán
-            </p>
-            
-            <div className="grid grid-cols-2 gap-2 font-mono">
-              {product.hybrid_score !== undefined && (
-                <div className="bg-amber-50 text-amber-700 px-2 py-1.5 rounded-lg border border-amber-200 flex flex-col" title="Hybrid Model (GMF + MLP + Attention)">
-                  <span className="opacity-80 text-[11px] leading-none mb-1 font-bold">HYBRID</span>
-                  <span className="font-black text-base">{product.hybrid_score.toFixed(4)}</span>
-                </div>
-              )}
-              {product.ae_norm !== undefined && (
-                <div className="bg-sky-50 text-sky-700 px-2 py-1.5 rounded-lg border border-sky-200 flex flex-col">
-                  <span className="opacity-80 text-[11px] leading-none mb-1 font-bold">AE_NORM</span>
-                  <span className="font-black text-base">{product.ae_norm.toFixed(4)}</span>
-                </div>
-              )}
-              {product.ncf_norm !== undefined && (
-                <div className="bg-emerald-50 text-emerald-700 px-2 py-1.5 rounded-lg border border-emerald-200 flex flex-col">
-                  <span className="opacity-80 text-[11px] leading-none mb-1 font-bold">NCF_NORM</span>
-                  <span className="font-black text-base">{product.ncf_norm.toFixed(4)}</span>
-                </div>
-              )}
-              {product.mlp_norm !== undefined && (
-                <div className="bg-purple-50 text-purple-700 px-2 py-1.5 rounded-lg border border-purple-200 flex flex-col">
-                  <span className="opacity-80 text-[11px] leading-none mb-1 font-bold">MLP_NORM</span>
-                  <span className="font-black text-base">{product.mlp_norm.toFixed(4)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+       
 
         {/* Giá tiền và Nút Thêm giỏ hàng */}
         <div className="flex items-center justify-between mt-auto pt-2">

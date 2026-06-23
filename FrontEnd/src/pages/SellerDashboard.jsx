@@ -98,6 +98,14 @@ const SellerDashboard = () => {
                     Xử lý đơn hàng <span>&rarr;</span>
                   </Link>
                 </div>
+
+                <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100 hover:border-emerald-400 hover:shadow-md transition-all group">
+                  <div className="text-4xl mb-4 group-hover:scale-110 transition-transform origin-left">💰</div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-2">Tài Chính & Doanh Thu</h3>
+                  <Link to="/seller/finance" className="text-emerald-600 font-bold text-sm flex items-center gap-1 group-hover:text-emerald-800">
+                    Rút tiền về ví <span>&rarr;</span>
+                  </Link>
+                </div>
                 
               </div>
             </div>

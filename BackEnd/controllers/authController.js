@@ -35,7 +35,10 @@ const login = async (req, res) => {
                 role: user.role,
                 amazon_id: user.amazon_id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                // 🌟 THÊM 2 DÒNG NÀY ĐỂ FRONTEND NHẬN ĐƯỢC SĐT VÀ ĐỊA CHỈ
+                phone: user.phone || '',
+                address: user.address || ''
             }
         });
     } catch (error) {

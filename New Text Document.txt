@@ -1,0 +1,6 @@
+ngrok config add-authtoken 3FJ9Uwzv0hyGpJjcAWLzoTmLJmL_3ckZPhr9CEJmJP4GPWT7Y
+
+https://reflux-driveway-pebbly.ngrok-free.dev/api/sepay
+ngrok http 5000
+
+SIEU_CAP_VJP_PRO

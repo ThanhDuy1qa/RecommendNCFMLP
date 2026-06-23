@@ -168,8 +168,39 @@ const verifyEmailChange = async (req, res) => {
   }
 };
 
+// 🌟 HÀM MỚI: GỬI EMAIL NHẮC NHỞ THANH TOÁN
+const sendOrderReminderEmail = async (userEmail, orderId, amountInVND) => {
+  try {
+    const checkoutLink = `http://localhost:5173/order-history`; // Dẫn về trang lịch sử để họ thấy nút thanh toán
+
+    await transport.sendMail({
+      from: '"Hệ Thống Bán Hàng" <no-reply@khodientu.com>',
+      to: userEmail,
+      subject: "⏳ Đơn hàng của bạn đang chờ thanh toán!",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #ea580c; margin-bottom: 20px;">Bạn đã quên thanh toán đơn hàng?</h2>
+          <p>Chào bạn,</p>
+          <p>Hệ thống ghi nhận bạn có một đơn hàng (Mã: <b>${orderId.substring(orderId.length - 8).toUpperCase()}</b>) trị giá <b>${amountInVND.toLocaleString()} đ</b> đang ở trạng thái Chờ xác nhận.</p>
+          <p>Đơn hàng sẽ tự động bị hủy sau 24 giờ kể từ lúc đặt nếu không được thanh toán. Vui lòng hoàn tất thanh toán để chúng tôi có thể giao hàng cho bạn sớm nhất nhé!</p>
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${checkoutLink}" style="display: inline-block; padding: 12px 24px; background-color: #ea580c; color: #ffffff; text-decoration: none; font-weight: bold; border-radius: 8px;">
+              Thanh toán ngay
+            </a>
+          </div>
+        </div>
+      `
+    });
+    console.log(`✅ Đã gửi mail nhắc nhở thanh toán cho đơn hàng ${orderId}`);
+  } catch (error) {
+    console.error(`❌ Lỗi gửi mail nhắc nhở cho đơn ${orderId}:`, error);
+  }
+};
+
+// Đừng quên xuất hàm này ra ở cuối file:
 module.exports = {
   sendMarketingEmail,
   requestEmailChange,
-  verifyEmailChange
+  verifyEmailChange,
+  sendOrderReminderEmail
 };

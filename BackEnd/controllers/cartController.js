@@ -59,6 +59,24 @@ const getCart = async (req, res) => {
   }
 };
 
+const updateQuantity = async (req, res) => {
+  try {
+    const { asin, quantity } = req.body;
+    const cart = await Cart.findOne({ userId: req.user.id });
+
+    if (cart) {
+      const existing = cart.items.find(item => item.asin === asin);
+      if (existing) {
+        existing.quantity = quantity; // Ghi đè số lượng mới
+        await cart.save();
+      }
+    }
+    res.json({ message: 'Cập nhật số lượng thành công' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi cập nhật số lượng' });
+  }
+};
+// Nhớ thêm hàm này vào module.exports ở cuối file nhé!
 /**
  * Đồng bộ giỏ hàng local vào database sau khi user đăng nhập.
  * Nếu sản phẩm đã tồn tại trong DB cart thì cộng dồn số lượng.
@@ -207,7 +225,21 @@ const clearCart = async (req, res) => {
     });
   }
 };
+const replaceCart = async (req, res) => {
+  try {
+    const { items } = req.body;
+    const cart = await findOrCreateCart(req.user.id);
+    
+    // Ghi đè hoàn toàn mảng items cũ bằng mảng items mới
+    cart.items = items; 
+    await cart.save();
 
+    res.json({ message: 'Ghi đè giỏ hàng thành công', items: cart.items });
+  } catch (error) {
+    console.error('Lỗi ghi đè giỏ hàng:', error);
+    res.status(500).json({ message: 'Lỗi ghi đè giỏ hàng' });
+  }
+};
 // =======================================================
 // 3. EXPORT CONTROLLER FUNCTIONS
 // Xuất các hàm để route sử dụng
@@ -219,5 +251,7 @@ module.exports = {
   syncCart,
   addToCart,
   removeFromCart,
-  clearCart
+  clearCart,
+  updateQuantity,
+  replaceCart,
 };

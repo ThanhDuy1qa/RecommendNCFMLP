@@ -122,6 +122,13 @@ const AdminDashboard = () => {
                   <Link to="/admin/orders" className="text-rose-600 font-bold text-sm flex items-center gap-1 group-hover:text-rose-800">Quản lý giao dịch <span>&rarr;</span></Link>
                 </div>
 
+                <div className="bg-teal-50/50 p-6 rounded-2xl border border-teal-100 hover:border-teal-400 hover:shadow-md transition-all group">
+                  <div className="text-4xl mb-4 group-hover:scale-110 transition-transform origin-left">💰</div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-2">Quản Lý Tài Chính</h3>
+                  <p className="text-slate-500 text-xs mb-4">Kế toán đối soát, rút tiền và hoàn tiền.</p>
+                  <Link to="/admin/finance" className="text-teal-600 font-bold text-sm flex items-center gap-1 group-hover:text-teal-800">Nghiệp vụ Kế toán <span>&rarr;</span></Link>
+                </div>
+
                 <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100 hover:border-purple-400 hover:shadow-md transition-all group cursor-pointer" onClick={() => setActiveTab('users')}>
                   <div className="text-4xl mb-4 group-hover:scale-110 transition-transform origin-left">👥</div>
                   <h3 className="text-lg font-bold text-slate-800 mb-2">Quản Lý Người Dùng</h3>

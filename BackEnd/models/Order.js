@@ -13,12 +13,37 @@ const orderSchema = new mongoose.Schema({
     totalAmount: Number,
     shippingInfo: {
         fullName: { type: String, required: true },
-        email: { type: String }, // 🌟 BỔ SUNG TRƯỜNG EMAIL
+        email: { type: String }, 
         phone: { type: String, required: true },
         address: { type: String, required: true }
     },
     paymentMethod: { type: String, default: 'COD' },
-    status: { type: String, default: 'Chờ xác nhận' } 
+    
+    // 🌟 1. CHUẨN HÓA ENUM TRẠNG THÁI (Chặn rác dữ liệu)
+    status: { 
+        type: String, 
+        enum: [
+            'Chờ xác nhận', 'Đang xử lý', 'Đang giao hàng', 
+            'Hoàn thành', 'Đã hủy', 'Thanh toán thiếu', 
+            'Thanh toán thừa', 'Chờ hoàn tiền'
+        ],
+        default: 'Chờ xác nhận' 
+    },
+
+    // 🌟 2. CỜ ĐÁNH DẤU ĐÃ GỬI MAIL NHẮC NHỞ (Dành cho Cron Job)
+    reminderSent: { type: Boolean, default: false },
+    isPaidToSeller: { type: Boolean, default: false },
+
+    bankTransactionId: { type: String, default: '' },
+    paidAmountVND: { type: Number, default: 0 },
+
+    // 🌟 3. NƠI LƯU THÔNG TIN KHÁCH YÊU CẦU HOÀN TIỀN KHI HỦY ĐƠN
+    refundInfo: {
+        bankName: String,
+        accountNumber: String,
+        accountName: String
+    }
+
 }, { timestamps: true });
 
 // ==========================================

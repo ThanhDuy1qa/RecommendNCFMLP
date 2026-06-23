@@ -167,6 +167,9 @@ const Header = () => {
                 <Link to="/seller/add-product" className="hover:text-sky-400 transition-colors whitespace-nowrap">
                   ➕ Thêm sản phẩm
                 </Link>
+                <Link to="/seller/finance" className="hover:text-sky-400 transition-colors whitespace-nowrap font-bold text-emerald-400">
+                  💰 Doanh thu
+                </Link>
                 <Link to="/seller/orders" className="hover:text-sky-400 transition-colors flex items-center gap-1 whitespace-nowrap">
                   📋 Đơn hàng
                   {pendingCount > 0 && (
@@ -191,6 +194,11 @@ const Header = () => {
                 <Link to="/admin/users" className="hover:text-sky-400 transition-colors whitespace-nowrap">
                   👥 Người dùng
                 </Link>
+
+                <Link to="/admin/finance" className="hover:text-sky-400 transition-colors whitespace-nowrap font-bold text-amber-400">
+                  💰 Tài chính
+                </Link>
+
                 <Link to="/admin/orders" className="hover:text-sky-400 transition-colors flex items-center gap-1 whitespace-nowrap">
                   📋 Đơn hàng
                   {pendingCount > 0 && (
@@ -199,6 +207,7 @@ const Header = () => {
                     </span>
                   )}
                 </Link>
+
               </>
             )}
 

@@ -14,6 +14,10 @@ const cartRoutes = require('./routes/cartRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const userRoutes = require('./routes/userRoutes');
 const emailRoutes = require('./routes/emailRoutes');
+const sepayRoutes = require('./routes/sepayRoutes');
+const startOrderCronJobs = require('./cron/orderCron');
+const financeRoutes = require('./routes/financeRoutes');
+
 const app = express();
 
 // Kết nối Database
@@ -29,15 +33,20 @@ app.use('/api/products', productRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/sepay', sepayRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/finance', financeRoutes);
 app.use('/api', emailRoutes);
+
 // Test route
 app.get('/', (req, res) => {
   res.send('API Backend Đang Hoạt Động!');
 });
 
+startOrderCronJobs(); 
+console.log('⏱️ Cron Jobs đã được kích hoạt!');
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

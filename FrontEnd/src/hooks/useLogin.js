@@ -32,10 +32,7 @@ export const useLogin = () => {
             if (res.ok) {
                 alert('Đăng nhập thành công!');
                 
-                // 1. DÙNG CONTEXT ĐỂ LƯU DATA (Thay vì localStorage thủ công)
-                login(data.user, data.token);
-
-                // 2. THUẬT TOÁN GỘP GIỎ HÀNG
+                // 🌟 1. THUẬT TOÁN GỘP GIỎ HÀNG LÊN SERVER TRƯỚC
                 const guestCartStr = localStorage.getItem('cart_guest');
                 if (guestCartStr && JSON.parse(guestCartStr).length > 0) {
                     const localItems = JSON.parse(guestCartStr);
@@ -43,14 +40,20 @@ export const useLogin = () => {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${data.token}`
+                            'Authorization': `Bearer ${data.token}` // Dùng luôn token từ response
                         },
                         body: JSON.stringify({ localItems })
                     });
-                    localStorage.removeItem('cart_guest');
                 }
 
-                // 3. CHUYỂN HƯỚNG MƯỢT MÀ BẰNG NAVIGATE
+                // 🌟 2. DỌN SẠCH RÁC TRONG LOCAL STORAGE UNCONDITIONALLY (Luôn luôn xóa)
+                localStorage.removeItem('cart_guest');
+
+                // 🌟 3. CẤP QUYỀN ĐĂNG NHẬP SAU KHI ĐÃ ĐỒNG BỘ XONG
+                // Lúc này CartContext sẽ bắt được token và tải về giỏ hàng đã được gộp chuẩn xác!
+                login(data.user, data.token);
+
+                // 4. CHUYỂN HƯỚNG MƯỢT MÀ BẰNG NAVIGATE
                 if (data.user.role === 1) {
                     navigate('/seller/my-products');
                 } else if (data.user.role === 2) {
